@@ -4,11 +4,10 @@
 #
 # Walks through the full story:
 #   1. Shows the journey JSON (the single source of truth)
-#   2. Validates the prototype against it (should pass)
-#   3. Validates the service descriptor against it (should pass)
-#   4. Introduces drift (changes a prototype page title)
-#   5. Re-validates the prototype (should fail with clear diff)
-#   6. Reverts the change (restores the original)
+#   2. Validates the prototype + service against it (should pass)
+#   3. Introduces drift (changes a prototype page title)
+#   4. Re-validates (should fail with clear diff)
+#   5. Reverts the change (restores the original)
 # =============================================================================
 
 set -euo pipefail
@@ -48,28 +47,18 @@ for i, p in enumerate(j['pages']):
 " 2>/dev/null || echo "  (install python3 to see the journey summary, or view example/journey.json directly)"
 echo ""
 
-# --- Step 2: Validate prototype (should pass) ---
-echo -e "${YELLOW}Step 2: Validating prototype — should PASS${NC}"
+# --- Step 2: Validate everything (should pass) ---
+echo -e "${YELLOW}Step 2: Validating prototype + service — should PASS${NC}"
 echo "---------------------------------------------"
-if sbt "testOnly contract.PrototypeContractSpec" 2>&1 | tail -5; then
-  echo -e "${GREEN}Prototype validation passed!${NC}"
+if sbt "testOnly contract.JourneyContractSpec" 2>&1 | tail -10; then
+  echo -e "${GREEN}All contract validation passed!${NC}"
 else
   echo -e "${RED}Unexpected failure — check the test output above.${NC}"
 fi
 echo ""
 
-# --- Step 3: Validate service (should pass) ---
-echo -e "${YELLOW}Step 3: Validating service — should PASS${NC}"
-echo "---------------------------------------------"
-if sbt "testOnly contract.ServiceContractSpec" 2>&1 | tail -5; then
-  echo -e "${GREEN}Service validation passed!${NC}"
-else
-  echo -e "${RED}Unexpected failure — check the test output above.${NC}"
-fi
-echo ""
-
-# --- Step 4: Introduce drift ---
-echo -e "${YELLOW}Step 4: Introducing drift — changing a page title in the prototype${NC}"
+# --- Step 3: Introduce drift ---
+echo -e "${YELLOW}Step 3: Introducing drift — changing a page title in the prototype${NC}"
 echo "---------------------------------------------"
 ORIGINAL_FILE="prototype/page-1-name.html"
 BACKUP_FILE="prototype/page-1-name.html.bak"
@@ -81,18 +70,18 @@ rm -f "${ORIGINAL_FILE}.tmp"
 echo "Changed 'What is your name?' → 'What's your name?' in $ORIGINAL_FILE"
 echo ""
 
-# --- Step 5: Re-validate prototype (should fail) ---
-echo -e "${YELLOW}Step 5: Re-validating prototype — should FAIL with drift detected${NC}"
+# --- Step 4: Re-validate (should fail) ---
+echo -e "${YELLOW}Step 4: Re-validating — should FAIL with drift detected${NC}"
 echo "---------------------------------------------"
-if sbt "testOnly contract.PrototypeContractSpec" 2>&1 | tail -20; then
+if sbt "testOnly contract.JourneyContractSpec" 2>&1 | tail -20; then
   echo -e "${RED}Expected failure but tests passed — something is wrong.${NC}"
 else
   echo -e "${GREEN}Drift detected! The validator caught the mismatch.${NC}"
 fi
 echo ""
 
-# --- Step 6: Revert the change ---
-echo -e "${YELLOW}Step 6: Reverting the change${NC}"
+# --- Step 5: Revert the change ---
+echo -e "${YELLOW}Step 5: Reverting the change${NC}"
 echo "---------------------------------------------"
 mv "$BACKUP_FILE" "$ORIGINAL_FILE"
 echo "Reverted $ORIGINAL_FILE to original."
