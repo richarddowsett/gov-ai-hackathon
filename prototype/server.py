@@ -288,12 +288,13 @@ class PrototypeHandler(BaseHTTPRequestHandler):
 
 def main():
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 4000
-    server = HTTPServer(("localhost", port), PrototypeHandler)
+    host = sys.argv[2] if len(sys.argv) > 2 else "localhost"
+    server = HTTPServer((host, port), PrototypeHandler)
     print(f"""
   ╔═══════════════════════════════════════════════════╗
   ║   GOV.UK Journey Prototype Server                 ║
   ║                                                   ║
-  ║   Running at: http://localhost:{port:<5}              ║
+  ║   Running at: http://{host}:{port:<5}                  ║
   ║   Journey:    example/journey.json                ║
   ║   Pages:      {len(PAGE_FILES)} prototype pages                  ║
   ║                                                   ║

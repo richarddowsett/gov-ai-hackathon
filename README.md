@@ -304,10 +304,35 @@ answers.
 ```bash
 # Clone the repository
 git clone https://github.com/richarddowsett/gov-ai-hackathon.git
-cd gov-ai-hackathon/journey-validator
+cd gov-ai-hackathon
 
 # Run all tests
 sbt test
+```
+
+## Docker Compose
+
+Run browser apps plus Postgres with one command:
+
+```bash
+./scripts/docker-up.sh
+```
+
+Services:
+- JSON Creator: `http://127.0.0.1:8787`
+- Prototype: `http://127.0.0.1:4000`
+- Postgres: `127.0.0.1:5433` by default (`journey` / `journey_user` / `journey_pass`)
+
+If `5433` is also taken:
+
+```bash
+POSTGRES_PORT=55432 docker compose up -d
+```
+
+Stop:
+
+```bash
+./scripts/docker-down.sh
 ```
 
 ## Browsing the Prototype
