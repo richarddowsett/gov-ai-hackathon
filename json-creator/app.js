@@ -568,11 +568,13 @@ function statusForPage(diag) {
   return "valid";
 }
 
-function indexOptionsHtml(current, count) {
+function indexOptionsHtml(current, pages) {
+  const count = pages.length;
   const max = Math.max(count + 5, 12, current);
   const options = [];
   for (let i = 0; i <= max; i += 1) {
-    const label = i < count ? `${i} (page-${i + 1})` : `${i} (END)`;
+    const title = i < count ? (pages[i].title || `Page ${i + 1}`).trim() : "";
+    const label = i < count ? `${i} (${title || `Page ${i + 1}`})` : `${i} (END)`;
     options.push(`<option value="${i}" ${i === current ? "selected" : ""}>${label}</option>`);
   }
   return options.join("");
@@ -649,7 +651,8 @@ function render() {
   updateOutputPreview(result);
 }
 
-function makeSelectIndexField(label, value, pageCount, onChange) {
+function makeSelectIndexField(label, value, pages, onChange) {
+  const pageCount = pages.length;
   const wrap = document.createElement("div");
   wrap.className = "govuk-form-group";
 
@@ -657,7 +660,7 @@ function makeSelectIndexField(label, value, pageCount, onChange) {
   wrap.innerHTML = `
     <label class="govuk-label">${label}</label>
     <div class="index-line">
-      <select class="govuk-select compact-input">${indexOptionsHtml(value, pageCount)}</select>
+      <select class="govuk-select compact-input">${indexOptionsHtml(value, pages)}</select>
       ${href ? `<a class="govuk-link jump-link" href="${href}">Jump</a>` : ""}
     </div>
   `;
@@ -674,8 +677,8 @@ function renderTypeDetails(container, page, idx, pageCount) {
   container.innerHTML = "";
 
   if (page.type === "boolean") {
-    container.appendChild(makeSelectIndexField("Index when true", page.boolTrue, pageCount, (v) => (state.pages[idx].boolTrue = v)));
-    container.appendChild(makeSelectIndexField("Index when false", page.boolFalse, pageCount, (v) => (state.pages[idx].boolFalse = v)));
+    container.appendChild(makeSelectIndexField("Index when true", page.boolTrue, state.pages, (v) => (state.pages[idx].boolTrue = v)));
+    container.appendChild(makeSelectIndexField("Index when false", page.boolFalse, state.pages, (v) => (state.pages[idx].boolFalse = v)));
     return;
   }
 
@@ -685,13 +688,13 @@ function renderTypeDetails(container, page, idx, pageCount) {
   }
 
   if (page.type === "checkbox") {
-    container.appendChild(makeSelectIndexField("Next index", page.index, pageCount, (v) => (state.pages[idx].index = v)));
+    container.appendChild(makeSelectIndexField("Next index", page.index, state.pages, (v) => (state.pages[idx].index = v)));
     container.appendChild(optionsBlock(page, idx, false, pageCount));
     return;
   }
 
   if (page.type === "multipleQuestionsPage") {
-    container.appendChild(makeSelectIndexField("Next index", page.index, pageCount, (v) => (state.pages[idx].index = v)));
+    container.appendChild(makeSelectIndexField("Next index", page.index, state.pages, (v) => (state.pages[idx].index = v)));
 
     [0, 1].forEach((n) => {
       const qWrap = document.createElement("div");
@@ -723,7 +726,7 @@ function renderTypeDetails(container, page, idx, pageCount) {
   }
 
   if (page.type === "string") {
-    container.appendChild(makeSelectIndexField("Next index", page.index, pageCount, (v) => (state.pages[idx].index = v)));
+    container.appendChild(makeSelectIndexField("Next index", page.index, state.pages, (v) => (state.pages[idx].index = v)));
     const vWrap = document.createElement("div");
     vWrap.className = "govuk-form-group";
     vWrap.innerHTML = `
@@ -738,7 +741,7 @@ function renderTypeDetails(container, page, idx, pageCount) {
     return;
   }
 
-  container.appendChild(makeSelectIndexField("Next index", page.index, pageCount, (v) => (state.pages[idx].index = v)));
+  container.appendChild(makeSelectIndexField("Next index", page.index, state.pages, (v) => (state.pages[idx].index = v)));
 }
 
 function optionsBlock(page, idx, includeTargets, pageCount) {
@@ -766,7 +769,7 @@ function optionsBlock(page, idx, includeTargets, pageCount) {
     row.className = "option-row";
 
     const targetControl = includeTargets
-      ? `<select class="govuk-select compact-input target">${indexOptionsHtml(toInt((page.optionTargets || [])[optIdx] ?? 0), pageCount)}</select>`
+      ? `<select class="govuk-select compact-input target">${indexOptionsHtml(toInt((page.optionTargets || [])[optIdx] ?? 0), state.pages)}</select>`
       : "<div></div>";
 
     row.innerHTML = `
