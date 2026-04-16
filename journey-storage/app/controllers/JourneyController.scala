@@ -3,51 +3,51 @@ package controllers
 import models.Journey
 import play.api.libs.json._
 import play.api.mvc._
+import repositories.JourneyRepository
 
-import java.util.concurrent.ConcurrentHashMap
 import javax.inject._
-import scala.jdk.CollectionConverters._
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class JourneyController @Inject()(cc: ControllerComponents) extends AbstractController(cc) {
+class JourneyController @Inject()(cc: ControllerComponents, repo: JourneyRepository)(implicit ec: ExecutionContext)
+    extends AbstractController(cc) {
 
-  private val store = new ConcurrentHashMap[String, Journey]()
-
-  def list = Action {
-    Ok(Json.toJson(store.values().asScala.toList))
+  def list = Action.async {
+    repo.list().map(journeys => Ok(Json.toJson(journeys)))
   }
 
-  def get(serviceName: String) = Action {
-    Option(store.get(serviceName)) match {
+  def get(serviceName: String) = Action.async {
+    repo.get(serviceName).map {
       case Some(journey) => Ok(Json.toJson(journey))
       case None          => NotFound(Json.obj("error" -> s"Journey for '$serviceName' not found"))
     }
   }
 
-  def create = Action(parse.json) { request =>
+  def create = Action.async(parse.json) { request =>
     request.body.validate[Journey] match {
       case JsSuccess(journey, _) =>
-        store.put(journey.serviceName, journey)
-        Created(Json.toJson(journey))
+        repo.create(journey).map(j => Created(Json.toJson(j)))
       case JsError(errors) =>
-        BadRequest(Json.obj("error" -> JsError.toJson(errors)))
+        Future.successful(BadRequest(Json.obj("error" -> JsError.toJson(errors))))
     }
   }
 
-  def update(serviceName: String) = Action(parse.json) { request =>
+  def update(serviceName: String) = Action.async(parse.json) { request =>
     request.body.validate[Journey] match {
       case JsSuccess(journey, _) =>
-        val existed = store.containsKey(serviceName)
-        val updated = journey.copy(serviceName = serviceName)
-        store.put(serviceName, updated)
-        if (existed) Ok(Json.toJson(updated)) else Created(Json.toJson(updated))
+        repo.update(serviceName, journey).map {
+          case Some(updated) => Ok(Json.toJson(updated))
+          case None          => NotFound(Json.obj("error" -> s"Journey for '$serviceName' not found"))
+        }
       case JsError(errors) =>
-        BadRequest(Json.obj("error" -> JsError.toJson(errors)))
+        Future.successful(BadRequest(Json.obj("error" -> JsError.toJson(errors))))
     }
   }
 
-  def delete(serviceName: String) = Action {
-    if (store.remove(serviceName) != null) NoContent
-    else NotFound(Json.obj("error" -> s"Journey for '$serviceName' not found"))
+  def delete(serviceName: String) = Action.async {
+    repo.delete(serviceName).map {
+      case true  => NoContent
+      case false => NotFound(Json.obj("error" -> s"Journey for '$serviceName' not found"))
+    }
   }
 }
