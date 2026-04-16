@@ -1,0 +1,85 @@
+@(title: String)(content: Html)
+
+<!DOCTYPE html>
+<html lang="en" class="govuk-template">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>@title - GOV.UK</title>
+    <style>
+        body {
+            font-family: "GDS Transport", arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            margin: 0;
+            color: #0b0c0c;
+        }
+        .govuk-header {
+            background: #0b0c0c;
+            color: white;
+            padding: 10px 0;
+            border-bottom: 10px solid #1d70b8;
+        }
+        .govuk-header__container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 0 15px;
+        }
+        .govuk-header__logotype-text {
+            font-size: 30px;
+            font-weight: 700;
+        }
+        .govuk-width-container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 0 15px;
+        }
+        .govuk-main-wrapper { padding: 40px 0; }
+        .govuk-heading-xl { font-size: 48px; font-weight: 700; margin-bottom: 30px; }
+        .govuk-body { font-size: 19px; line-height: 1.5; margin-bottom: 20px; }
+        .govuk-form-group { margin-bottom: 20px; }
+        .govuk-label { display: block; font-size: 19px; margin-bottom: 5px; font-weight: 700; }
+        .govuk-input {
+            font-size: 19px; padding: 5px; border: 2px solid #0b0c0c;
+            width: 100%; max-width: 500px; box-sizing: border-box;
+        }
+        .govuk-input--width-2 { max-width: calc(5.4ex + 14px); }
+        .govuk-input--width-4 { max-width: calc(9ex + 14px); }
+        .govuk-radios__item {
+            display: flex; align-items: flex-start; margin-bottom: 10px; padding-left: 0;
+        }
+        .govuk-radios__input { margin: 0 10px 0 0; min-width: 44px; min-height: 44px; }
+        .govuk-radios__label { font-size: 19px; padding: 8px 0; cursor: pointer; }
+        .govuk-checkboxes__item {
+            display: flex; align-items: flex-start; margin-bottom: 10px;
+        }
+        .govuk-checkboxes__input { margin: 0 10px 0 0; min-width: 44px; min-height: 44px; }
+        .govuk-checkboxes__label { font-size: 19px; padding: 8px 0; cursor: pointer; }
+        .govuk-button {
+            font-size: 19px; font-weight: 700; padding: 8px 20px;
+            background: #00703c; color: white; border: none; cursor: pointer;
+            box-shadow: 0 2px 0 #002d18; margin-top: 20px;
+        }
+        .govuk-button:hover { background: #005a30; }
+        .govuk-date-input { display: flex; gap: 20px; }
+        .govuk-date-input__item { display: flex; flex-direction: column; }
+        .govuk-panel {
+            background: #00703c; color: white; padding: 35px; text-align: center;
+        }
+        .govuk-panel__title { font-size: 48px; font-weight: 700; margin: 0 0 15px; }
+        .govuk-panel__body { font-size: 36px; }
+        .govuk-link { color: #1d70b8; }
+    </style>
+</head>
+<body class="govuk-template__body">
+    <header class="govuk-header" role="banner">
+        <div class="govuk-header__container">
+            <span class="govuk-header__logotype-text">GOV.UK</span>
+        </div>
+    </header>
+    <div class="govuk-width-container">
+        <main class="govuk-main-wrapper" role="main">
+            @content
+        </main>
+    </div>
+</body>
+</html>

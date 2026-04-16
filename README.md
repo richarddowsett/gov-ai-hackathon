@@ -1,8 +1,9 @@
 # AI Journey Contract Validator
 
-A Scala-based tool for validating that GOV.UK prototypes and Play Framework service
-implementations conform to an agreed **JSON journey definition** — the single source
-of truth between interaction designers and developers.
+A full-stack platform for defining, storing, and validating GOV.UK user journeys.
+An interaction designer defines a journey in JSON; validation libraries for both
+Scala (Play Framework) and Python (prototypes) catch drift automatically — every
+page title, every form field, every branching path.
 
 ---
 
@@ -37,19 +38,37 @@ continuously, in CI, before every merge.
 
 ## Solution
 
-### The journey JSON as single source of truth
+### End-to-end architecture
 
-The interaction designer and the developer agree on a journey defined in a single
-JSON file. This file captures every page in the journey: its type, title, form
-fields, options, branching logic, and navigation order.
-
-From this one file, the validator automatically:
-
-1. **Parses** the JSON into a typed Scala model
-2. **Builds a graph** and enumerates every valid path through the journey (including all branching combinations)
-3. **Validates the prototype** — fetches each HTML page and checks that it has the correct title, form elements, radio/checkbox options, and question labels
-4. **Validates the service** — checks that the service route descriptor defines routes for every page with correct types, titles, and branching routes
-5. **Reports failures** with exact file and line references so you know precisely what to fix
+```
+┌─────────────────────────┐
+│  JSON Creator UI        │  Interaction designer builds the journey
+│  (browser app)          │  via a schema-driven form
+│  http://localhost:8787  │
+└────────────┬────────────┘
+             │  POST /journeys
+             ▼
+┌─────────────────────────┐
+│  Journey Storage API    │  Stores journey JSON by service name
+│  (Play Framework)       │  in PostgreSQL
+│  http://localhost:9000  │
+└────────────┬────────────┘
+             │  GET /journeys/:serviceName
+     ┌───────┴───────┐
+     ▼               ▼
+┌──────────┐  ┌──────────────┐
+│ Prototype│  │ Play Service  │  Both consume the same journey JSON
+│ (HTML)   │  │ (example-     │
+│          │  │  service)     │
+└────┬─────┘  └──────┬───────┘
+     │               │
+     ▼               ▼
+┌──────────┐  ┌──────────────┐
+│prototype-│  │journey-      │  Validation libraries catch drift
+│validation│  │validation    │  against the contract
+│(Python)  │  │(Scala)       │
+└──────────┘  └──────────────┘
+```
 
 ### What gets validated
 
@@ -57,172 +76,170 @@ From this one file, the validator automatically:
 |-------|-----------------|
 | **Schema structure** | Every page has a non-empty title, a recognised type, valid indices, and branching pages define routes |
 | **Graph integrity** | At least one path exists, all paths start at page 0, no infinite loops |
-| **Prototype HTML** | `<h1>` title matches contract, correct form elements for the page type (text inputs, date fields, radio buttons, checkboxes, question labels), all options present with matching labels |
-| **Service routes** | Every journey page has a corresponding route, page types match, branching routes cover all answers |
-| **Drift detection** | Any change to any of the above is caught and reported with the expected value, the actual value, the contract line, and the file:line to fix |
+| **Play service (Scala)** | Each page renders with correct `<h1>` title, correct form elements, and form submissions navigate to the right next page for every branching answer |
+| **Prototype (Python)** | Each HTML page has the correct `<h1>` title, form elements matching the page type, and correct option labels |
+| **Drift detection** | Any change to any of the above is caught and reported immediately |
 
 ### Failure output
 
-When something drifts, the output tells you exactly where to look:
+When something drifts, the tests tell you exactly what went wrong:
 
 ```
-❌  page[1] — title
-      expected : 'What is your name?'
-      actual   : 'What's your name?'
-      contract : example/journey.json:10
-      fix at   : prototype/page-1-name.html:13
+FAILED  page[1] (string) 'What is your name?' should render correctly
+  - Expected <h1> to contain "What is your name?" but found "What's your name?"
 ```
-
-- **contract** points to the line in the journey JSON that defines the expectation
-- **fix at** points to the line in the prototype or service file that needs updating
 
 ---
 
-## Architecture
+## Quick Start
 
-```
-                    ┌─────────────────────────┐
-                    │   Journey JSON           │
-                    │   (source of truth)      │
-                    │                          │
-                    │   example/journey.json   │
-                    └────────────┬────────────┘
-                                 │
-                    ┌────────────▼────────────┐
-                    │   JourneyParser          │
-                    │   (play-json → model)    │
-                    └────────────┬────────────┘
-                                 │
-                    ┌────────────▼────────────┐
-                    │   JourneyGraph           │
-                    │   (DFS path enumeration) │
-                    └────────────┬────────────┘
-                                 │
-               ┌─────────────────┼─────────────────┐
-               │                                    │
-  ┌────────────▼────────────┐         ┌────────────▼────────────┐
-  │   PrototypeValidator     │         │   ServiceValidator       │
-  │   (Jsoup HTML parsing)   │         │   (play-json routes)     │
-  │                          │         │                          │
-  │   Validates:             │         │   Validates:             │
-  │   • <h1> title           │         │   • route existence      │
-  │   • form elements        │         │   • page type match      │
-  │   • radio/checkbox opts  │         │   • branching routes     │
-  │   • question labels      │         │   • title match          │
-  └────────┬─────────────────┘         └────────┬─────────────────┘
-           │                                    │
-           └─────────────┬──────────────────────┘
-                         │
-              ┌──────────▼──────────┐
-              │   SourceLocator      │
-              │   (file:line refs)   │
-              └─────────────────────┘
+### Prerequisites
+
+- **Docker** and **Docker Compose** (for the full stack)
+- **Java 11+** (Java 17 or 21 recommended, for sbt)
+- **sbt** (Scala Build Tool) — [install guide](https://www.scala-sbt.org/download.html)
+- **Python 3** (for prototype server and prototype-validation)
+
+### Run everything with Docker Compose
+
+```bash
+./scripts/docker-up.sh
 ```
 
-### Data flow
+This starts:
 
-1. `JourneyParser` reads the JSON file and produces a `Journey` model containing a `Vector[Page]`. Each `Page` has a polymorphic `PageIndex` — either `LinearIndex(next: Int)` for sequential pages, or `BranchingIndex(routes: Map[String, Int])` for boolean/radio pages where each answer leads to a different page.
+| Service | URL | Description |
+|---------|-----|-------------|
+| JSON Creator | http://localhost:8787 | Browser UI for designing journeys |
+| Prototype | http://localhost:4000 | Browsable GOV.UK-styled prototype |
+| Journey Storage API | http://localhost:9000/journeys | REST API for journey persistence |
+| PostgreSQL | localhost:5433 | Database for journey storage |
 
-2. `JourneyGraph` performs a depth-first walk from page 0. At each branching page it forks into multiple paths. Cycle detection prevents infinite recursion. The result is a `List[JourneyPath]`, each being a complete start-to-terminal route through the journey.
+If port 5433 is taken:
 
-3. `PrototypeValidator` takes each page's contract and the corresponding HTML (fetched from an embedded HTTP server serving the prototype directory). It uses Jsoup to parse the DOM and checks: title text from `<h1>`, form element presence by type (`input[type=text]`, `input[type=radio]`, etc.), option labels from `<label>` elements, and question titles from labels/legends.
+```bash
+POSTGRES_PORT=55432 docker compose up -d
+```
 
-4. `ServiceValidator` takes each page's contract and a parsed `ServiceDescriptor` (a list of routes from a JSON file). It checks that a route exists for every page, that `pageType` matches, and that branching pages define `nextRoutes` for every answer in the contract.
+Stop everything:
 
-5. `SourceLocator` is called when a check fails. It reads the raw source files and searches for the relevant content to resolve line numbers. This produces `SourceRef(file, line)` values that are attached to `Fail` results, giving developers an exact pointer to what needs changing.
+```bash
+./scripts/docker-down.sh
+```
+
+### Run validation tests
+
+```bash
+# Validate the Play service against journey.json
+sbt "exampleService/test"
+
+# Validate the prototype against journey.json
+cd prototype && python3 -m pytest tests/ -v
+
+# Run the Play service locally (browse at http://localhost:9000/start)
+sbt "exampleService/run"
+```
 
 ---
 
-## Implementation Details
+## Components
 
-### Core model (`Types.scala`)
+### journey-storage (Play Framework API)
+
+A Play Framework microservice that stores and retrieves journey JSON definitions
+keyed by service name. Backed by PostgreSQL with automatic schema evolution.
+
+**REST API:**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/journeys` | List all stored journeys |
+| `POST` | `/journeys` | Create a new journey |
+| `GET` | `/journeys/:serviceName` | Get journey by service name |
+| `PUT` | `/journeys/:serviceName` | Update an existing journey |
+| `DELETE` | `/journeys/:serviceName` | Delete a journey |
+
+**Example:**
+
+```bash
+# Store a journey
+curl -X POST http://localhost:9000/journeys \
+  -H "Content-Type: application/json" \
+  -d '{"serviceName":"my-service","json":"{\"pages\":[...]}"}'
+
+# Retrieve it
+curl http://localhost:9000/journeys/my-service
+```
+
+See [instruction.md](instruction.md) for detailed setup instructions.
+
+### journey-validation (Scala library)
+
+A reusable Scala library that any Play Framework service can depend on to validate
+itself against a journey JSON contract. Provides:
+
+- **Model classes** — `Journey`, `Page`, `PageIndex` (linear and branching)
+- **JSON parser** — reads journey JSON into the typed model via play-json
+- **Graph engine** — DFS enumeration of all valid paths through the journey
+- **Page validator** — checks rendered HTML (via Jsoup) for correct titles, form
+  elements, radio/checkbox options, and question labels
+- **`JourneySpec` trait** — mix into your test suite to get auto-generated tests for
+  every page and every path
+
+**Usage in a Play service:**
 
 ```scala
-sealed trait PageIndex
-case class LinearIndex(next: Int)                   extends PageIndex
-case class BranchingIndex(routes: Map[String, Int]) extends PageIndex
+class JourneyValidationSpec extends JourneySpec with GuiceOneAppPerSuite {
+  lazy val journeyJson: String = {
+    val stream = app.classloader.getResourceAsStream("journey.json")
+    scala.io.Source.fromInputStream(stream).mkString
+  }
 
-case class Page(
-    pageType:   String,               // contentPage, string, datePage, boolean, radioButton, checkbox, multipleQuestionsPage
-    title:      String,               // the <h1> heading — primary validation anchor
-    index:      PageIndex,            // where to navigate next
-    options:    List[String],         // radio/checkbox option labels
-    questions:  List[Question],       // sub-questions for multipleQuestionsPage
-    validation: Option[List[String]]  // optional regex patterns
-)
-
-case class Journey(pages: Vector[Page])
+  validatePages()   // generates a test for each page
+  validatePaths()   // generates a test for each unique path through the journey
+}
 ```
 
-The `index` field is polymorphic in the JSON: an integer for linear pages, an object
-for branching pages. `JourneyParser` handles this with a custom `Reads[PageIndex]`
-that tries `Int` first, then falls back to `Map[String, Int]`.
+See [example-service/README.md](example-service/README.md) for the full example.
 
-### Validation result model (`PrototypeValidator.scala`)
+### example-service (Play Framework app)
 
-```scala
-sealed trait ValidationResult { def check: String; def isPass: Boolean }
-case class Pass(check: String) extends ValidationResult
-case class Fail(
-    check:       String,
-    expected:    String,
-    actual:      String,
-    contractRef: Option[SourceRef] = None,  // journey.json:10
-    sourceRef:   Option[SourceRef] = None   // prototype/page-1-name.html:13
-) extends ValidationResult
+A working Play Framework application that dynamically renders pages based on
+`journey.json`. Demonstrates how to use the `journey-validation` library. The
+controller reads the journey at startup and renders the appropriate Twirl template
+for each page type, with working form submissions and branching navigation.
+
+### prototype-validation (Python library)
+
+The Python equivalent of `journey-validation`, for validating HTML prototypes:
+
+- **Model classes** — `Journey`, `Page`, `Question`, `Pass`, `Fail`
+- **JSON parser** — reads journey JSON into Python dataclasses
+- **Graph engine** — path enumeration matching the Scala implementation
+- **Page validator** — checks HTML files (via BeautifulSoup4) for correct structure
+- **`PrototypeTestSuite`** — high-level test suite class for use with pytest
+
+**Usage with pytest:**
+
+```python
+@pytest.mark.parametrize("page_index", range(len(suite.journey.pages)))
+def test_page(suite, page_index):
+    report = suite.validate_page(page_index)
+    assert report.all_passed, report.summary()
 ```
 
-Every check produces either a `Pass` or a `Fail`. Failures carry optional source
-references so the output can point directly to the lines that need attention.
+See [prototype-validation/README.md](prototype-validation/README.md) for details.
 
-### Configuration (`ValidatorConfig.scala`)
+### json-creator (browser app)
 
-All file paths are driven by system properties with sensible defaults:
+A standalone browser-based tool for interaction designers to create journey JSON
+files. Provides a form-driven UI based on `journey.schema.json`, with integration
+into the Journey Storage API for saving and loading journeys.
 
-| Property | Default | Description |
-|----------|---------|-------------|
-| `journey.json` | `example/journey.json` | Path to the journey contract JSON |
-| `prototype.dir` | `prototype` | Directory containing prototype HTML files |
-| `service.json` | `service/routes.json` | Path to the service route descriptor |
+### prototype (HTML pages)
 
-This means you can validate **any journey** without changing a single line of code —
-just pass different `-D` flags to sbt.
-
-### Test structure
-
-There are two test suites:
-
-- **`JourneyContractSpec`** — the main validation suite. Dynamically generates tests
-  from the journey JSON: schema structure checks, graph path enumeration, per-page
-  prototype validation, full-path prototype traversal, and service route validation.
-  Everything is discovered from the JSON — no hardcoded page titles, indices, or options.
-
-- **`DriftDetectionSpec`** — demonstrates that the validator catches specific kinds
-  of drift by constructing deliberately broken HTML and incomplete service descriptors.
-  Finds pages by type from the JSON (e.g. "give me a `radioButton` page") rather than
-  hardcoding indices.
-
-### Embedded HTTP server (`EmbeddedServer.scala`)
-
-Tests need to fetch prototype pages over HTTP (mimicking how a real prototype server
-works). `EmbeddedServer` uses Java's built-in `com.sun.net.httpserver.HttpServer` with
-zero dependencies. It maps `GET /page/{index}` to files matching
-`page-{index}-*.html` in the prototype directory, reading them fresh from disk on
-every request.
-
-### Prototype naming convention
-
-Prototype HTML files must follow the pattern `page-{index}-{slug}.html` where
-`{index}` is the zero-based array position in the journey JSON and `{slug}` is a
-human-readable name. For example:
-
-```
-page-0-welcome.html
-page-1-name.html
-page-3-license.html
-```
-
-The slug is for developer convenience only — the validator matches files by index.
+GOV.UK-styled static HTML pages representing the user journey. Served by a simple
+Python HTTP server with working form submissions and branching logic.
 
 ---
 
@@ -251,8 +268,6 @@ This produces **3 unique paths** through the journey:
 
 ### Supported page types
 
-All 7 page types from the schema are supported:
-
 | Type | Description | Validated elements |
 |------|-------------|--------------------|
 | `contentPage` | Static content, no form | `<h1>` title only |
@@ -269,180 +284,49 @@ All 7 page types from the schema are supported:
 - **Branching pages** have an object `index` mapping each answer string to a target page index
 - An index pointing beyond the array length signals the end of the journey
 
-### Service route descriptor
-
-The service descriptor (`service/routes.json`) describes the routes a Play Framework
-service exposes. Each route has:
-
-```json
-{
-  "method": "GET",
-  "path": "/drivers-license",
-  "pageType": "boolean",
-  "title": "Do you have a driver's license?",
-  "nextRoutes": {
-    "true": "/vehicle-type",
-    "false": "/transport-method"
-  }
-}
-```
-
-The validator checks that every page in the journey has a matching route with the
-correct `pageType`, `title`, and (for branching pages) `nextRoutes` covering all
-answers.
-
 ---
-
-## Prerequisites
-
-- **Java 11+** (Java 17 or 21 recommended)
-- **sbt** (Scala Build Tool) — [install guide](https://www.scala-sbt.org/download.html)
-- **Python 3** (only needed for the browsable prototype server, not for tests)
-
-## Quick Start
-
-```bash
-# Clone the repository
-git clone https://github.com/richarddowsett/gov-ai-hackathon.git
-cd gov-ai-hackathon
-
-# Run all tests
-sbt test
-```
-
-## Docker Compose
-
-Run browser apps plus Postgres with one command:
-
-```bash
-./scripts/docker-up.sh
-```
-
-Services:
-- JSON Creator: `http://127.0.0.1:8787`
-- Prototype: `http://127.0.0.1:4000`
-- Journey Storage API: `http://127.0.0.1:9000/journeys`
-- Postgres: `127.0.0.1:5433` by default (`journey` / `journey_user` / `journey_pass`)
-
-If `5433` is also taken:
-
-```bash
-POSTGRES_PORT=55432 docker compose up -d
-```
-
-Stop:
-
-```bash
-./scripts/docker-down.sh
-```
-
-## Browsing the Prototype
-
-The prototype pages can be viewed in a real browser with full GOV.UK styling,
-working form submissions, and branching logic driven by the journey JSON.
-
-```bash
-python3 prototype/server.py
-```
-
-Then open **http://localhost:4000** in your browser.
-
-Features:
-- **GOV.UK styling** — header, phase banner, styled form elements, green action buttons
-- **Working branching** — boolean and radio button pages route you down different paths based on your selection, exactly as defined in the journey JSON
-- **Back links** — every page after the first has a "Back" link
-- **Page navigator** — a debug strip at the bottom of every page with direct links (current page highlighted)
-- **Custom port** — pass a port number as an argument: `python3 prototype/server.py 8080`
-
-Try both journey paths:
-1. Answer **Yes** to "Do you have a driver's license?" → vehicle type → features → rate experience
-2. Answer **No** → preferred transportation method → thank you
 
 ## Running Tests
 
-The validator is **fully dynamic** — you specify the journey JSON, prototype
-directory, and service descriptor and it validates everything automatically.
-Nothing is hardcoded to a particular journey.
-
-### Default (uses the example journey shipped with this repo)
+### Play service validation (Scala)
 
 ```bash
+# All tests (journey-validation library + example-service)
 sbt test
+
+# Just the example service
+sbt "exampleService/test"
 ```
 
-### Custom journey — system properties
+The `JourneySpec` trait dynamically generates tests from `journey.json` — 9 page
+validation tests and 3 path traversal tests for the example journey (16 total with
+edge cases).
 
-Pass `-D` flags to point at your own files:
+### Prototype validation (Python)
 
 ```bash
-sbt \
-  -Djourney.json=path/to/your/journey.json \
-  -Dprototype.dir=path/to/your/prototype \
-  -Dservice.json=path/to/your/routes.json \
-  test
+cd prototype
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r tests/requirements.txt
+python3 -m pytest tests/ -v
 ```
 
-### Custom journey — shell script
+This runs BeautifulSoup-based checks against every HTML page and every path.
 
-The runner script accepts `--journey`, `--prototype`, and `--service` flags,
-or environment variables:
-
-```bash
-chmod +x scripts/*.sh
-
-# flags
-./scripts/validate-journey.sh \
-  --journey my/journey.json \
-  --prototype my/proto \
-  --service my/routes.json
-
-# environment variables
-JOURNEY_JSON=my/journey.json \
-PROTOTYPE_DIR=my/proto \
-SERVICE_JSON=my/routes.json \
-./scripts/validate-journey.sh
-```
-
-### Individual suites
-
-```bash
-sbt "testOnly contract.JourneyContractSpec"   # schema, graph, prototype, service
-sbt "testOnly contract.DriftDetectionSpec"     # drift detection demo
-
-# or via the script
-./scripts/validate-journey.sh contract
-./scripts/validate-journey.sh drift
-```
-
-## Drift Detection
-
-The key value proposition: when something changes, the validator catches it
-immediately and tells you exactly where to fix it.
-
-The `DriftDetectionSpec` test suite demonstrates five scenarios:
-- **Title mismatch** — changing a page title in the prototype
-- **Missing form field** — removing a required `<input>` element
-- **Missing radio option** — dropping one option from a radio button group
-- **Missing service route** — incomplete service descriptor
-- **Correct page** — control case confirming valid HTML passes
-
-### Interactive Demo
-
-Run the demo script to see drift detection in action end-to-end:
+### Drift detection demo
 
 ```bash
 chmod +x scripts/demo.sh
 ./scripts/demo.sh
 ```
 
-The demo walks through five steps:
-1. **Shows the journey** — prints every page from the JSON with its type, title, and navigation
-2. **Validates the prototype + service** — runs `JourneyContractSpec` (should pass)
-3. **Introduces drift** — changes `"What is your name?"` to `"What's your name?"` in the prototype HTML
-4. **Re-validates** — runs the same spec again (should fail with a colour-highlighted failure showing the exact file and line to fix)
-5. **Reverts the change** — restores the original prototype file
-
-The whole thing takes about 30 seconds and leaves the repo in a clean state.
+The demo:
+1. Shows the journey from `journey.json`
+2. Validates the Play service (should pass)
+3. Introduces drift — changes a Twirl template to hide a form field
+4. Re-validates (should fail with a clear error)
+5. Reverts the change
 
 ---
 
@@ -450,142 +334,127 @@ The whole thing takes about 30 seconds and leaves the repo in a clean state.
 
 ```
 journey-validator/
-├── build.sbt                              # SBT build definition + system property forwarding
+├── build.sbt                              # Multi-project SBT build
+├── docker-compose.yml                     # Full stack: json-creator, prototype,
+│                                          #   journey-storage, postgres
 ├── project/
-│   └── build.properties                   # SBT version (1.10.7)
+│   ├── build.properties                   # SBT 1.10.7
+│   └── plugins.sbt                        # Play Framework SBT plugin
 │
-├── schema/
-│   └── journey.schema.json                # JSON Schema for journey definitions (7 page types)
+├── journey-validation/                    # Scala validation library
+│   └── src/main/scala/journeyvalidation/
+│       ├── model.scala                    #   Page, Journey, PageIndex types
+│       ├── JourneyParser.scala            #   JSON → Journey (play-json)
+│       ├── JourneyGraph.scala             #   DFS path enumeration
+│       ├── PageValidator.scala            #   HTML checks (Jsoup)
+│       └── JourneySpec.scala              #   ScalaTest trait for Play apps
+│
+├── example-service/                       # Example Play Framework app
+│   ├── app/
+│   │   ├── controllers/
+│   │   │   └── JourneyController.scala    #   Dynamic page rendering
+│   │   └── views/                         #   Twirl templates (GOV.UK styled)
+│   ├── conf/
+│   │   ├── application.conf
+│   │   ├── routes
+│   │   └── journey.json                   #   Journey contract (classpath)
+│   └── test/scala/
+│       └── JourneyValidationSpec.scala    #   Uses JourneySpec trait
+│
+├── journey-storage/                       # Journey persistence API (Play)
+│   ├── app/
+│   │   ├── controllers/
+│   │   │   └── JourneyController.scala    #   REST CRUD endpoints
+│   │   ├── models/
+│   │   │   └── Journey.scala              #   (serviceName, json) model
+│   │   └── repositories/
+│   │       └── JourneyRepository.scala    #   PostgreSQL via JDBC
+│   └── conf/
+│       ├── application.conf               #   DB config, CORS, evolutions
+│       ├── routes                         #   /journeys/:serviceName
+│       └── evolutions/default/1.sql       #   Schema migration
+│
+├── prototype-validation/                  # Python validation library
+│   ├── pyproject.toml
+│   └── journeyvalidation/
+│       ├── model.py                       #   Page, Journey dataclasses
+│       ├── parser.py                      #   JSON → Journey
+│       ├── graph.py                       #   Path enumeration
+│       ├── page_validator.py              #   HTML checks (BeautifulSoup4)
+│       └── prototype_suite.py             #   PrototypeTestSuite class
+│
+├── json-creator/                          # Browser-based journey designer
+│   ├── index.html
+│   ├── app.js
+│   ├── styles.css
+│   └── journey.schema.json
+│
+├── prototype/                             # GOV.UK-styled HTML prototype
+│   ├── server.py                          #   Python HTTP server (port 4000)
+│   ├── page-0-welcome.html … page-8-thankyou.html
+│   └── tests/                             #   Pytest suite using prototype-validation
+│       ├── conftest.py
+│       ├── test_journey_validation.py
+│       └── requirements.txt
 │
 ├── example/
-│   └── journey.json                       # Example journey (9-page survey, 3 unique paths)
-│
-├── prototype/
-│   ├── server.py                          # Browsable prototype server (Python 3, port 4000)
-│   ├── page-0-welcome.html                # GOV.UK-styled prototype pages
-│   ├── page-1-name.html                   #   named page-{index}-{slug}.html
-│   ├── page-2-dob.html
-│   ├── page-3-license.html                # Boolean branching page
-│   ├── page-4-vehicle.html                # Radio button branching page
-│   ├── page-5-features.html               # Checkbox page
-│   ├── page-6-transport.html              # Radio button page
-│   ├── page-7-rate.html                   # Multiple questions page
-│   └── page-8-thankyou.html               # Terminal content page
-│
-├── service/
-│   └── routes.json                        # Service route descriptor (mirrors journey.json)
-│
-├── src/main/scala/contract/
-│   ├── Types.scala                        # Page, Journey, PageIndex, SourceRef case classes
-│   ├── JourneyParser.scala                # JSON → Journey model (play-json, polymorphic index)
-│   ├── JourneyGraph.scala                 # DFS graph traversal + path enumeration
-│   ├── PrototypeValidator.scala           # HTML validation + ValidationResult/Report types
-│   ├── ServiceValidator.scala             # Service route validation
-│   └── SourceLocator.scala                # File:line lookup for failure messages
-│
-├── src/test/scala/contract/
-│   ├── ValidatorConfig.scala              # System-property-driven paths (journey, prototype, service)
-│   ├── EmbeddedServer.scala               # Zero-dependency HTTP server for prototype pages
-│   ├── JourneyContractSpec.scala          # Main JSON-driven validation suite (23 tests)
-│   └── DriftDetectionSpec.scala           # Deliberate-drift demonstration suite (5 tests)
-│
+│   └── journey.json                       # Example journey definition
+├── schema/
+│   └── journey.schema.json                # JSON Schema for journeys
 ├── scripts/
-│   ├── validate-journey.sh                # Configurable test runner (flags + env vars)
+│   ├── docker-up.sh                       # Start full Docker stack
+│   ├── docker-down.sh                     # Stop Docker stack
+│   ├── start-json-creator.sh              # Start json-creator standalone
+│   ├── validate-journey.sh                # Run validation tests
 │   └── demo.sh                            # Interactive drift detection demo
 │
-├── BRIEF.md                               # Hackathon pitch / story
-└── README.md                              # This file
+├── README.md                              # This file
+├── BRIEF.md                               # Hackathon pitch
+├── Diagarm.md                             # Architecture diagram
+├── End2End.md                             # End-to-end flow diagram
+└── instruction.md                         # Docker / JSON Creator setup guide
 ```
 
-## How to Add Your Own Journey
+## SBT Build Structure
 
-1. **Write the journey JSON** following `schema/journey.schema.json`. Each page needs
-   a `type`, `title`, and `index`. Add `options` for radio/checkbox pages, `questions`
-   for multipleQuestionsPage.
+The project uses a multi-project SBT build with three subprojects:
 
-2. **Create prototype HTML files** in a directory, named `page-{index}-{slug}.html`.
-   Each file must have an `<h1>` containing the page title, and the appropriate form
-   elements for its type (text input, radio buttons, checkboxes, etc.).
-
-3. **Create a service route descriptor** as a JSON file with a `routes` array. Each
-   route needs `method`, `path`, `pageType`, `title`, and (for branching pages)
-   `nextRoutes`.
-
-4. **Run the validator** against your files — no code changes needed:
+| Project | Directory | Description |
+|---------|-----------|-------------|
+| `journeyValidation` | `journey-validation/` | Scala validation library (published artifact) |
+| `exampleService` | `example-service/` | Play app demonstrating the library |
+| `storageService` | `journey-storage/` | Play API for journey persistence |
+| `root` | `.` | Aggregates all subprojects |
 
 ```bash
-sbt \
-  -Djourney.json=your/journey.json \
-  -Dprototype.dir=your/prototype \
-  -Dservice.json=your/routes.json \
-  test
+sbt "journeyValidation/compile"   # compile the library
+sbt "exampleService/test"         # test the example service
+sbt "storageService/run"          # run the storage API (needs PostgreSQL)
+sbt compile                       # compile everything
 ```
-
-## Extending the Validator
-
-### Adding a new page type
-
-1. Add the type to `schema/journey.schema.json` as a new `oneOf` entry
-2. Add a case to `validatePageElements` in `PrototypeValidator.scala` that checks the
-   appropriate HTML elements for the new type
-3. The parser, graph traversal, service validator, and test suite will handle the new
-   type automatically (they are driven by the JSON, not by hardcoded types)
-
-### Adding a new validation check
-
-1. Add the check logic in the appropriate validator (`PrototypeValidator` or
-   `ServiceValidator`)
-2. Return `Pass(...)` or `Fail(...)` — attach `contractRef` and `sourceRef` using
-   `SourceLocator` methods so failures point to the right files
-3. The check will automatically appear in test output and the `ValidationReport`
-
-### Adding a new source file type
-
-If you need to validate something beyond HTML prototypes and service route
-descriptors (e.g. a React component tree, a Cypress test file):
-
-1. Create a new validator object following the pattern of `PrototypeValidator`
-2. Add corresponding `SourceLocator` methods for line-number resolution
-3. Add a new section to `JourneyContractSpec` (or a new spec) that calls your validator
-4. The file path should be configurable via a system property in `ValidatorConfig`
 
 ## Technology Stack
 
 | Component | Technology | Why |
 |-----------|-----------|-----|
 | Build | SBT 1.10.7 | Standard Scala build tool |
-| Language | Scala 2.13 | Type-safe, expressive, Play-compatible |
-| JSON parsing | play-json 3.0.4 | Native Play Framework JSON library |
-| HTML parsing | Jsoup 1.18.1 | Fast, reliable HTML parser (no browser needed) |
-| Testing | ScalaTest 3.2.19 | Standard Scala test framework, dynamic test generation |
-| Test server | Java HttpServer | Zero-dependency embedded server for prototype pages |
-| Prototype server | Python 3 | Browse the journey in a real browser with GOV.UK styling |
-
-### Why these choices
-
-- **Scala + play-json**: Government services on GOV.UK are typically built with Scala
-  and the Play Framework. Using the same language and JSON library means the validator
-  can be dropped into existing CI pipelines and shares the same dependency ecosystem.
-
-- **Jsoup over Selenium**: Jsoup parses HTML statically — no browser, no WebDriver,
-  no flaky timeouts. Tests run in ~1 second. Selenium could be added later for
-  JavaScript-heavy prototypes, but for GOV.UK's progressive enhancement approach,
-  static HTML parsing is sufficient and much faster.
-
-- **ScalaTest FreeSpec**: The `FreeSpec` style allows dynamic test generation from
-  the journey JSON. Tests are created at suite construction time by iterating over
-  pages and paths, so adding pages to the journey automatically adds tests.
-
-- **Embedded HttpServer**: Java's built-in HTTP server has zero dependencies and
-  starts in milliseconds. The prototype files are read from disk on every request,
-  so changes to HTML are picked up immediately without restarting.
+| Language (service) | Scala 2.13 | Type-safe, Play-compatible |
+| Language (prototype validation) | Python 3 | Matches prototype ecosystem |
+| Service framework | Play Framework 3.0.6 | Standard GOV.UK service framework |
+| JSON parsing | play-json 3.0.4 | Native Play JSON library |
+| HTML parsing (Scala) | Jsoup 1.18.1 | Fast static HTML parser |
+| HTML parsing (Python) | BeautifulSoup4 | Standard Python HTML parser |
+| Testing (Scala) | ScalaTest + ScalaTestPlusPlay | Play-integrated test framework |
+| Testing (Python) | pytest | Standard Python test framework |
+| Database | PostgreSQL 16 | Journey storage persistence |
+| Containerisation | Docker Compose | Run the full stack locally |
 
 ## Future Scope
 
-- **Selenium/Playwright browser tests** — for full browser-based validation including JavaScript interactions
-- **Cross-framework support** — validate Node.js prototypes, React SPAs, or any HTML-based journey
-- **Central validation API** — a microservice that any team can call to validate their journey
-- **AI auto-fix** — detect drift and generate a PR to fix it automatically
-- **Visual journey builder** — drag-and-drop UI for creating journey JSONs
-- **CI pipeline integration** — fail the build when the contract is violated
-- **Schema evolution** — versioned journey contracts with migration support
+- Fetch journey JSON from the storage API at test time (instead of local file)
+- Published `journey-validation` library on Maven Central
+- Published `prototype-validation` package on PyPI
+- CI pipeline integration — fail the build when the contract is violated
+- AI auto-fix — detect drift and generate a PR to fix it
+- Cross-framework support — Node.js, React SPAs
+- Schema evolution — versioned journey contracts with migration support

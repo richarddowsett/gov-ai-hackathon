@@ -1,0 +1,4 @@
+GET     /                           controllers.JourneyController.start
+GET     /page/:index                controllers.JourneyController.showPage(index: Int)
+POST    /page/:index                controllers.JourneyController.submitPage(index: Int)
+GET     /complete                   controllers.JourneyController.complete

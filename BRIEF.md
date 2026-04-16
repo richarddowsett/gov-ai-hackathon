@@ -12,30 +12,53 @@ built is correct?**
 
 ## Solution
 
-A single **JSON journey definition** acts as the **source of truth** — agreed by the
-interaction designer and the developer. From this JSON, we generate contract tests
-that validate:
+A **journey JSON definition** acts as the single source of truth — created by the
+interaction designer using a browser-based tool, stored centrally via a REST API, and
+validated automatically against both the prototype and the production service.
 
-1. **Prototype pages** — does the HTML prototype match the journey contract?
-2. **Service implementation** — does the Scala/Play service implement the correct
-   pages, titles, types, and branching logic?
-3. **Drift detection** — if someone (or an AI agent) changes something, the validator
-   catches it immediately with a clear diff.
+### The platform
+
+1. **JSON Creator** — browser UI for interaction designers to build journey definitions
+   against a schema, and save them to the storage API
+2. **Journey Storage** — a Play Framework microservice backed by PostgreSQL that
+   stores journey JSON by service name, accessible via REST
+3. **journey-validation** (Scala library) — validates a running Play Framework service
+   against the journey contract: page titles, form fields, options, and navigation
+4. **prototype-validation** (Python library) — validates static HTML prototype pages
+   against the same contract using BeautifulSoup4
+5. **Docker Compose** — runs the full stack (creator, storage, prototype, database)
+   with one command
+
+### What gets validated
+
+- **Page rendering** — does each page have the right title, form fields, and options?
+- **Navigation** — do form submissions route to the correct next page for every
+  branching answer?
+- **Full path coverage** — is every possible journey through the service valid
+  end-to-end?
 
 ## How It Works
 
 ```
-Journey JSON (single source of truth)
+Interaction designer
         │
-        ├── Parse into Scala model (7 page types, branching graph)
+        ▼
+JSON Creator (browser UI)
         │
-        ├── Enumerate all valid paths through the journey
+        ▼
+Journey Storage API (Play + PostgreSQL)
         │
-        ├── Validate prototype HTML against each page's contract
-        │       ✓ title matches    ✓ form fields exist    ✓ options present
-        │
-        └── Validate service descriptor against each page's contract
-                ✓ route exists    ✓ page type matches    ✓ branching routes defined
+   ┌────┴────┐
+   ▼         ▼
+Prototype   Play Service
+   │         │
+   ▼         ▼
+prototype-  journey-
+validation  validation
+(Python)    (Scala)
+   │         │
+   ▼         ▼
+pytest      sbt test
 ```
 
 ## The Story
@@ -43,27 +66,38 @@ Journey JSON (single source of truth)
 > "In this world of rapid AI-driven development, how do you guarantee that what you
 > designed is what you shipped?"
 >
-> With the Journey Contract Validator, you define the journey once in JSON, and the
-> contract tests guarantee that the prototype and the implementation match — every
-> page title, every form field, every branching path.
->
-> Change something? The tests fail. Immediately. With a clear message telling you
-> exactly what drifted.
+> With the Journey Contract Validator, the designer creates a journey in the browser,
+> stores it centrally, and both the prototype and the service validate themselves
+> against that contract. Change something? The tests fail. Immediately. With a clear
+> message telling you exactly what drifted.
 
 ## Running
 
 ```bash
-sbt test                                   # run everything
-./scripts/validate-journey.sh prototype    # validate prototype only
-./scripts/validate-journey.sh service      # validate service only
-./scripts/validate-journey.sh drift        # run drift detection tests
-./scripts/demo.sh                          # full demo walkthrough
+# Start the full stack (JSON Creator + Storage API + Prototype + PostgreSQL)
+./scripts/docker-up.sh
+
+# Validate the Play service against journey.json
+sbt "exampleService/test"
+
+# Validate the HTML prototype against journey.json
+cd prototype && python3 -m pytest tests/ -v
+
+# Browse the Play service
+sbt "exampleService/run"             # http://localhost:9000/start
+
+# Browse the HTML prototype
+python3 prototype/server.py          # http://localhost:4000
+
+# Interactive drift detection demo
+./scripts/demo.sh
 ```
 
 ## Future Vision
 
+- Fetch journey JSON from the storage API at test time
+- Published libraries on Maven Central and PyPI
 - Cross-framework validation (Play, Node.js, React)
 - Central validation API for government-wide journey contracts
 - AI-generated PR fixes when drift is detected
-- Visual journey builder UI
 - CI pipeline integration
