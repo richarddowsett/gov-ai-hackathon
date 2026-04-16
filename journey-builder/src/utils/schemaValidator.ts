@@ -1,0 +1,151 @@
+import Ajv from 'ajv';
+import type { Journey } from '../types/journey';
+
+const schema = {
+  $schema: 'http://json-schema.org/draft-07/schema#',
+  type: 'object',
+  properties: {
+    pages: {
+      type: 'array',
+      items: {
+        oneOf: [
+          {
+            type: 'object',
+            properties: {
+              type: { const: 'checkbox' },
+              title: { type: 'string', maxLength: 100 },
+              index: { type: 'integer', minimum: 0 },
+              options: {
+                type: 'array',
+                items: { type: 'string', maxLength: 50 },
+                minItems: 1,
+              },
+            },
+            required: ['type', 'title', 'index', 'options'],
+            additionalProperties: false,
+          },
+          {
+            type: 'object',
+            properties: {
+              type: { const: 'datePage' },
+              title: { type: 'string', maxLength: 100 },
+              index: { type: 'integer', minimum: 0 },
+            },
+            required: ['type', 'title', 'index'],
+            additionalProperties: false,
+          },
+          {
+            type: 'object',
+            properties: {
+              type: { const: 'contentPage' },
+              title: { type: 'string', maxLength: 100 },
+              index: { type: 'integer', minimum: 0 },
+            },
+            required: ['type', 'title', 'index'],
+            additionalProperties: false,
+          },
+          {
+            type: 'object',
+            properties: {
+              type: { const: 'multipleQuestionsPage' },
+              title: { type: 'string', maxLength: 100 },
+              index: { type: 'integer', minimum: 0 },
+              questions: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    questionTitle: { type: 'string', maxLength: 100 },
+                  },
+                  required: ['questionTitle'],
+                  additionalProperties: false,
+                },
+                minItems: 2,
+                maxItems: 2,
+              },
+              validation: {
+                type: 'array',
+                items: { type: 'string', maxLength: 100 },
+                minItems: 2,
+                maxItems: 2,
+              },
+            },
+            required: ['type', 'title', 'index', 'questions'],
+            additionalProperties: false,
+          },
+          {
+            type: 'object',
+            properties: {
+              type: { const: 'radioButton' },
+              title: { type: 'string', maxLength: 100 },
+              index: {
+                type: 'object',
+                additionalProperties: { type: 'integer', minimum: 0 },
+                minProperties: 1,
+              },
+              options: {
+                type: 'array',
+                items: { type: 'string', maxLength: 50 },
+                minItems: 1,
+              },
+            },
+            required: ['type', 'title', 'index', 'options'],
+            additionalProperties: false,
+          },
+          {
+            type: 'object',
+            properties: {
+              type: { const: 'boolean' },
+              title: { type: 'string', maxLength: 100 },
+              index: {
+                type: 'object',
+                properties: {
+                  true: { type: 'integer', minimum: 0 },
+                  false: { type: 'integer', minimum: 0 },
+                },
+                required: ['true', 'false'],
+                additionalProperties: false,
+              },
+            },
+            required: ['type', 'title', 'index'],
+            additionalProperties: false,
+          },
+          {
+            type: 'object',
+            properties: {
+              type: { const: 'string' },
+              title: { type: 'string', maxLength: 100 },
+              index: { type: 'integer', minimum: 0 },
+              validation: { type: 'string', maxLength: 100 },
+            },
+            required: ['type', 'title', 'index'],
+            additionalProperties: false,
+          },
+        ],
+      },
+    },
+  },
+  required: ['pages'],
+};
+
+const ajv = new Ajv({ allErrors: true });
+const validate = ajv.compile(schema);
+
+export interface ValidationResult {
+  valid: boolean;
+  errors: string[];
+}
+
+export function validateJourney(journey: Journey): ValidationResult {
+  const valid = validate(journey);
+  if (valid) {
+    return { valid: true, errors: [] };
+  }
+
+  const errors = (validate.errors ?? []).map((err) => {
+    const path = err.instancePath || '/';
+    return `${path}: ${err.message}`;
+  });
+
+  return { valid: false, errors };
+}

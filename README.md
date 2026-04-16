@@ -332,6 +332,72 @@ Try both journey paths:
 1. Answer **Yes** to "Do you have a driver's license?" → vehicle type → features → rate experience
 2. Answer **No** → preferred transportation method → thank you
 
+## Journey Builder UI
+
+The **Journey Builder** is a drag-and-drop visual editor for creating and editing
+journey JSON files. It enables non-technical users — interaction designers, policy
+owners, BA's — to define journeys without writing JSON by hand.
+
+### Quick Start
+
+```bash
+cd journey-builder
+npm install
+npm run dev
+```
+
+Then open **http://localhost:5173** in your browser.
+
+### Features
+
+- **Drag-and-drop GDS components** — drag any of the 7 page types from the sidebar
+  onto the canvas to add pages to your journey
+- **Visual flow graph** — pages appear as styled nodes; draw connections between them
+  to define the navigation order
+- **Branching logic** — boolean (Yes/No) and radio button pages expose separate output
+  handles for each option, letting you wire different paths visually
+- **GDS-styled previews** — each node renders a mini-preview showing the form elements
+  (text inputs, date fields, radios, checkboxes, question labels) so you can see at a
+  glance what each page contains
+- **Properties panel** — click any page to edit its title, options, questions, and
+  validation regex in a right-hand panel
+- **Real-time validation** — warnings appear live for empty titles, missing connections,
+  unreachable pages, and empty option lists
+- **Export to JSON** — generates a `journey.json` file conforming to
+  `schema/journey.schema.json`, validated with Ajv before download
+- **Import from JSON** — load an existing `journey.json` to visualise and edit it;
+  auto-layout positions nodes cleanly using dagre
+- **Auto-layout** — one-click dagre-based graph layout
+- **Minimap and controls** — pan, zoom, and navigate large journeys
+
+### How it works
+
+1. Drag GDS component types from the left sidebar onto the canvas
+2. Click a node to edit its title and properties in the right panel
+3. Drag from an output handle (bottom of a node) to an input handle (top of another
+   node) to connect pages
+4. For branching pages (Yes/No, Radio Buttons), each option has its own output handle —
+   connect each to the appropriate next page
+5. Click **Export JSON** in the header to download the journey file
+6. Feed the exported `journey.json` into the validator:
+
+```bash
+sbt -Djourney.json=path/to/exported/journey.json test
+```
+
+### Technology
+
+| Component | Technology | Why |
+|-----------|-----------|-----|
+| Framework | React 18 | Component model, large ecosystem |
+| Flow editor | @xyflow/react (React Flow) | Purpose-built for node-based visual editors |
+| Build | Vite | Fast dev server and optimised production builds |
+| Schema validation | Ajv | JSON Schema validation on export |
+| Auto-layout | dagre | Directed graph layout algorithm |
+| Language | TypeScript | Type safety matching the journey schema |
+
+---
+
 ## Running Tests
 
 The validator is **fully dynamic** — you specify the journey JSON, prototype
@@ -467,6 +533,38 @@ journey-validator/
 │   ├── validate-journey.sh                # Configurable test runner (flags + env vars)
 │   └── demo.sh                            # Interactive drift detection demo
 │
+├── journey-builder/                       # Drag-and-drop visual journey editor
+│   ├── package.json                       # React + React Flow + Ajv + dagre
+│   ├── vite.config.ts                     # Vite build configuration
+│   ├── tsconfig.json                      # TypeScript configuration
+│   ├── index.html                         # Entry point
+│   └── src/
+│       ├── main.tsx                       # App bootstrap
+│       ├── App.tsx                        # Main layout, state management, import/export
+│       ├── components/
+│       │   ├── Canvas.tsx                 # React Flow canvas with drag-and-drop
+│       │   ├── Sidebar.tsx                # Draggable GDS component palette
+│       │   ├── PropertiesPanel.tsx        # Node property editor (title, options, validation)
+│       │   └── nodes/                     # Custom React Flow node renderers (one per page type)
+│       │       ├── nodeTypes.ts           # Node type registry and shared data interface
+│       │       ├── ContentPageNode.tsx
+│       │       ├── StringNode.tsx
+│       │       ├── DatePageNode.tsx
+│       │       ├── BooleanNode.tsx        # Branching: true/false output handles
+│       │       ├── RadioButtonNode.tsx    # Branching: per-option output handles
+│       │       ├── CheckboxNode.tsx
+│       │       └── MultipleQuestionsNode.tsx
+│       ├── hooks/
+│       │   ├── useJourneyExport.ts       # Nodes + edges → journey.json conversion
+│       │   └── useJourneyImport.ts       # journey.json → nodes + edges with auto-layout
+│       ├── types/
+│       │   └── journey.ts                # TypeScript types mirroring the JSON schema
+│       ├── utils/
+│       │   ├── schemaValidator.ts        # Ajv-based validation against journey.schema.json
+│       │   └── autoLayout.ts             # dagre-based directed graph layout
+│       └── styles/
+│           └── gds-theme.css             # GOV.UK-inspired styling for the editor
+│
 ├── BRIEF.md                               # Hackathon pitch / story
 └── README.md                              # This file
 ```
@@ -560,6 +658,6 @@ descriptors (e.g. a React component tree, a Cypress test file):
 - **Cross-framework support** — validate Node.js prototypes, React SPAs, or any HTML-based journey
 - **Central validation API** — a microservice that any team can call to validate their journey
 - **AI auto-fix** — detect drift and generate a PR to fix it automatically
-- **Visual journey builder** — drag-and-drop UI for creating journey JSONs
+- ~~**Visual journey builder** — drag-and-drop UI for creating journey JSONs~~ **Done** — see `journey-builder/`
 - **CI pipeline integration** — fail the build when the contract is violated
 - **Schema evolution** — versioned journey contracts with migration support
