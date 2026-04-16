@@ -1,0 +1,11 @@
+# IntelliJ
+.idea/
+*.iml
+
+# SBT / Scala
+project/project/
+project/target/
+target/
+
+# Local outputs
+journey-state.json

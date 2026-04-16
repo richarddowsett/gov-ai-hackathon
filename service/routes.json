@@ -1,0 +1,54 @@
+{
+  "pages": [
+    {
+      "id": "page-1",
+      "title": "Welcome to our survey",
+      "next": { "_default": "page-2" }
+    },
+    {
+      "id": "page-2",
+      "title": "What is your name?",
+      "next": { "_default": "page-3" }
+    },
+    {
+      "id": "page-3",
+      "title": "What is your date of birth?",
+      "next": { "_default": "page-4" }
+    },
+    {
+      "id": "page-4",
+      "title": "Do you have a driver's license?",
+      "next": { "true": "page-5", "false": "page-7" }
+    },
+    {
+      "id": "page-5",
+      "title": "What type of vehicle do you own?",
+      "next": { "Car": "page-6", "Motorcycle": "page-6", "Truck": "page-6", "Other": "page-7" }
+    },
+    {
+      "id": "page-6",
+      "title": "Select all vehicle features you have:",
+      "next": { "_default": "page-8" }
+    },
+    {
+      "id": "page-7",
+      "title": "What is your preferred transportation method?",
+      "next": {
+        "Public Transport": "page-9",
+        "Personal Vehicle": "page-9",
+        "Bicycle": "page-9",
+        "Walking": "page-9"
+      }
+    },
+    {
+      "id": "page-8",
+      "title": "Rate your experience",
+      "next": { "_default": "END" }
+    },
+    {
+      "id": "page-9",
+      "title": "Thank you for completing the survey!",
+      "next": { "_default": "END" }
+    }
+  ]
+}
