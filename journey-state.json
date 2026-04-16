@@ -1,0 +1,49 @@
+{
+  "journey": "journey",
+  "visited": [
+    "page-1",
+    "page-2",
+    "page-3",
+    "page-4",
+    "page-5",
+    "page-6",
+    "page-8"
+  ],
+  "transitions": [
+    {
+      "from": "page-1",
+      "by": "_default",
+      "to": "page-2"
+    },
+    {
+      "from": "page-2",
+      "by": "_default",
+      "to": "page-3"
+    },
+    {
+      "from": "page-3",
+      "by": "_default",
+      "to": "page-4"
+    },
+    {
+      "from": "page-4",
+      "by": "true",
+      "to": "page-5"
+    },
+    {
+      "from": "page-5",
+      "by": "Car",
+      "to": "page-6"
+    },
+    {
+      "from": "page-6",
+      "by": "_default",
+      "to": "page-8"
+    },
+    {
+      "from": "page-8",
+      "by": "_default",
+      "to": "END"
+    }
+  ]
+}
