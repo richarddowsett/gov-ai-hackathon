@@ -7,6 +7,7 @@ lazy val storageService = (project in file("journey-storage"))
     libraryDependencies ++= Seq(
       guice,
       jdbc,
+      filters,
       evolutions,
       "org.postgresql" % "postgresql" % "42.7.3"
     )

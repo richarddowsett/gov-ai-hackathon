@@ -9,8 +9,20 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class JourneyRepository @Inject()(db: Database)(implicit ec: ExecutionContext) {
 
+  private def ensureTable(conn: java.sql.Connection): Unit = {
+    val stmt = conn.createStatement()
+    stmt.execute(
+      """CREATE TABLE IF NOT EXISTS journeys (
+        |  service_name VARCHAR(255) PRIMARY KEY,
+        |  json TEXT NOT NULL
+        |)""".stripMargin
+    )
+    stmt.close()
+  }
+
   def list(): Future[Seq[Journey]] = Future {
     db.withConnection { conn =>
+      ensureTable(conn)
       val stmt = conn.prepareStatement("SELECT service_name, json FROM journeys ORDER BY service_name")
       val rs   = stmt.executeQuery()
       val buf  = scala.collection.mutable.ListBuffer.empty[Journey]
@@ -22,6 +34,7 @@ class JourneyRepository @Inject()(db: Database)(implicit ec: ExecutionContext) {
 
   def get(serviceName: String): Future[Option[Journey]] = Future {
     db.withConnection { conn =>
+      ensureTable(conn)
       val stmt = conn.prepareStatement("SELECT service_name, json FROM journeys WHERE service_name = ?")
       stmt.setString(1, serviceName)
       val rs     = stmt.executeQuery()
@@ -33,6 +46,7 @@ class JourneyRepository @Inject()(db: Database)(implicit ec: ExecutionContext) {
 
   def create(journey: Journey): Future[Journey] = Future {
     db.withConnection { conn =>
+      ensureTable(conn)
       val stmt = conn.prepareStatement("INSERT INTO journeys (service_name, json) VALUES (?, ?)")
       stmt.setString(1, journey.serviceName)
       stmt.setString(2, journey.json)
@@ -44,6 +58,7 @@ class JourneyRepository @Inject()(db: Database)(implicit ec: ExecutionContext) {
 
   def update(serviceName: String, journey: Journey): Future[Option[Journey]] = Future {
     db.withConnection { conn =>
+      ensureTable(conn)
       val stmt = conn.prepareStatement("UPDATE journeys SET json = ? WHERE service_name = ?")
       stmt.setString(1, journey.json)
       stmt.setString(2, serviceName)
@@ -55,6 +70,7 @@ class JourneyRepository @Inject()(db: Database)(implicit ec: ExecutionContext) {
 
   def delete(serviceName: String): Future[Boolean] = Future {
     db.withConnection { conn =>
+      ensureTable(conn)
       val stmt = conn.prepareStatement("DELETE FROM journeys WHERE service_name = ?")
       stmt.setString(1, serviceName)
       val rows = stmt.executeUpdate()
