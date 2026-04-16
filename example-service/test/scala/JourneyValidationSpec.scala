@@ -12,8 +12,18 @@ class JourneyValidationSpec extends JourneySpec with GuiceOneAppPerSuite {
     new GuiceApplicationBuilder().build()
 
   lazy val journeyJson: String = {
-    val stream = getClass.getClassLoader.getResourceAsStream("journey.json")
-    Using(Source.fromInputStream(stream))(_.mkString).get
+    val storageUrl  = sys.env.getOrElse("JOURNEY_STORAGE_URL", "http://localhost:9000")
+    val serviceName = sys.env.getOrElse("JOURNEY_SERVICE_NAME", "example-survey")
+
+    JourneyStorageClient.fetch(storageUrl, serviceName) match {
+      case Right(json) =>
+        info(s"Loaded journey for '$serviceName' from storage API at $storageUrl")
+        json
+      case Left(err) =>
+        info(s"Storage API not available ($err), falling back to classpath journey.json")
+        val stream = getClass.getClassLoader.getResourceAsStream("journey.json")
+        Using(Source.fromInputStream(stream))(_.mkString).get
+    }
   }
 
   "Journey structure" should {

@@ -3,6 +3,9 @@
 Uses the journey-validation Python library to automatically verify that
 every page has the correct title, form elements, and option labels, and
 that every unique path through the journey can be traversed.
+
+The journey JSON is fetched from the journey-storage API when available,
+falling back to the local example/journey.json file.
 """
 
 import os
@@ -18,10 +21,17 @@ from journeyvalidation import (
     ValidationReport,
 )
 
-JOURNEY_PATH = os.path.join(PROJECT_ROOT, "example", "journey.json")
+STORAGE_URL = os.environ.get("JOURNEY_STORAGE_URL", "http://localhost:9000")
+SERVICE_NAME = os.environ.get("JOURNEY_SERVICE_NAME", "example-survey")
 PROTOTYPE_DIR = os.path.join(PROJECT_ROOT, "prototype")
+FALLBACK_PATH = os.path.join(PROJECT_ROOT, "example", "journey.json")
 
-suite = PrototypeTestSuite(JOURNEY_PATH, PROTOTYPE_DIR)
+suite = PrototypeTestSuite.from_storage(
+    storage_url=STORAGE_URL,
+    service_name=SERVICE_NAME,
+    prototype_dir=PROTOTYPE_DIR,
+    fallback_path=FALLBACK_PATH,
+)
 
 
 # ---------------------------------------------------------------------------

@@ -3,6 +3,7 @@ from .parser import parse, parse_file
 from .graph import enumerate_all_paths, unique_paths, JourneyPath, PathStep
 from .page_validator import validate_html
 from .prototype_suite import PrototypeTestSuite
+from .storage_client import fetch_journey
 
 __all__ = [
     "Journey", "Page", "Question",
@@ -11,4 +12,5 @@ __all__ = [
     "enumerate_all_paths", "unique_paths", "JourneyPath", "PathStep",
     "validate_html",
     "PrototypeTestSuite",
+    "fetch_journey",
 ]

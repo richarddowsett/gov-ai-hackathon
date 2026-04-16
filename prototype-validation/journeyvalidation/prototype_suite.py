@@ -1,20 +1,32 @@
 import glob
 import os
-from typing import List
+from typing import List, Optional
 
 from .graph import unique_paths as _unique_paths, JourneyPath
 from .model import ValidationReport
 from .page_validator import validate_html
-from .parser import parse_file
+from .parser import parse, parse_file
+from .storage_client import fetch_journey
 
 
 class PrototypeTestSuite:
     """High-level test helper that validates a prototype directory against a
     journey JSON contract.
 
+    The journey can be loaded from a local file, a raw JSON string, or the
+    journey-storage API.
+
     Usage::
 
+        # From a local file
         suite = PrototypeTestSuite("example/journey.json", "prototype")
+
+        # From the storage API
+        suite = PrototypeTestSuite.from_storage(
+            storage_url="http://localhost:9000",
+            service_name="example-survey",
+            prototype_dir="prototype",
+        )
 
         # Validate a single page
         results = suite.validate_page(0)
@@ -22,16 +34,44 @@ class PrototypeTestSuite:
         # Validate all pages at once
         report = suite.validate_all_pages()
         assert report.all_passed
-
-        # Validate a specific path
-        for path in suite.unique_paths:
-            report = suite.validate_path(path)
     """
 
     def __init__(self, journey_path: str, prototype_dir: str):
         self.journey = parse_file(journey_path)
         self.prototype_dir = prototype_dir
         self._unique_paths = _unique_paths(self.journey)
+
+    @classmethod
+    def from_json(cls, journey_json: str, prototype_dir: str) -> "PrototypeTestSuite":
+        """Create a suite from a raw journey JSON string."""
+        instance = object.__new__(cls)
+        instance.journey = parse(journey_json)
+        instance.prototype_dir = prototype_dir
+        instance._unique_paths = _unique_paths(instance.journey)
+        return instance
+
+    @classmethod
+    def from_storage(
+        cls,
+        storage_url: str,
+        service_name: str,
+        prototype_dir: str,
+        fallback_path: Optional[str] = None,
+    ) -> "PrototypeTestSuite":
+        """Create a suite by fetching journey JSON from the storage API.
+
+        If ``fallback_path`` is provided and the storage API is unreachable,
+        the journey is loaded from that local file instead.
+        """
+        try:
+            json_str = fetch_journey(storage_url, service_name)
+            return cls.from_json(json_str, prototype_dir)
+        except (ConnectionError, RuntimeError, ValueError) as exc:
+            if fallback_path:
+                return cls(fallback_path, prototype_dir)
+            raise RuntimeError(
+                f"Could not fetch journey from storage API: {exc}"
+            ) from exc
 
     @property
     def unique_paths(self) -> List[JourneyPath]:
