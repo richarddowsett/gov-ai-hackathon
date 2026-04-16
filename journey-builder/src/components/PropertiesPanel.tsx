@@ -1,12 +1,21 @@
 import { type Node } from '@xyflow/react';
 import type { PageNodeData } from './nodes/nodeTypes';
-import { PAGE_TYPE_LABELS, isBranchingType } from '../types/journey';
+import { PAGE_TYPE_LABELS, isBranchingType, type PageType } from '../types/journey';
 
 interface Props {
   selectedNode: Node | null;
   onUpdateNode: (id: string, data: Partial<PageNodeData>) => void;
   onDeleteNode: (id: string) => void;
 }
+
+const TYPES_WITH_SINGLE_VALIDATION: PageType[] = ['string', 'datePage', 'checkbox', 'radioButton'];
+
+const VALIDATION_HINTS: Partial<Record<PageType, string>> = {
+  string: 'Regex for text input (e.g. ^[a-zA-Z\\s]{1,100}$)',
+  datePage: 'Regex for date validation (e.g. ^\\d{2}/\\d{2}/\\d{4}$)',
+  checkbox: 'Validation rule for selected options',
+  radioButton: 'Validation rule for selected option',
+};
 
 export function PropertiesPanel({ selectedNode, onUpdateNode, onDeleteNode }: Props) {
   if (!selectedNode) {
@@ -26,6 +35,8 @@ export function PropertiesPanel({ selectedNode, onUpdateNode, onDeleteNode }: Pr
   const update = (changes: Partial<PageNodeData>) => {
     onUpdateNode(selectedNode.id, changes);
   };
+
+  const showSingleValidation = TYPES_WITH_SINGLE_VALIDATION.includes(pageType);
 
   return (
     <div className="properties-panel">
@@ -55,7 +66,7 @@ export function PropertiesPanel({ selectedNode, onUpdateNode, onDeleteNode }: Pr
           />
         )}
 
-        {pageType === 'string' && (
+        {showSingleValidation && (
           <div className="panel-field">
             <label htmlFor="validation">Validation Regex</label>
             <input
@@ -63,7 +74,7 @@ export function PropertiesPanel({ selectedNode, onUpdateNode, onDeleteNode }: Pr
               type="text"
               value={(data.validation as string) ?? ''}
               maxLength={100}
-              placeholder="e.g. ^[a-zA-Z\s]{1,100}$"
+              placeholder={VALIDATION_HINTS[pageType] ?? 'Optional regex pattern'}
               onChange={(e) => update({ validation: e.target.value || undefined })}
             />
             <span className="panel-field-hint">Optional regular expression for input validation</span>

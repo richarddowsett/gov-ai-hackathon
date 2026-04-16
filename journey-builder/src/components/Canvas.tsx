@@ -6,6 +6,7 @@ import {
   Background,
   BackgroundVariant,
   addEdge,
+  MarkerType,
   type Connection,
   type Node,
   type Edge,
@@ -16,6 +17,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { nodeTypes } from './nodes/nodeTypes';
 import type { PageNodeData } from './nodes/nodeTypes';
+import { edgeTypes } from './edges/JourneyEdge';
 import { defaultPageData, type PageType } from '../types/journey';
 import { getNextNodeId } from '../hooks/useJourneyImport';
 
@@ -43,16 +45,19 @@ export function Canvas({
 
   const onConnect = useCallback(
     (connection: Connection) => {
-      const label = connection.sourceHandle?.startsWith('branch-')
-        ? connection.sourceHandle.replace('branch-', '')
+      const rawHandle = connection.sourceHandle ?? '';
+      const normalized = rawHandle.replace(/-right$/, '');
+      const label = normalized.startsWith('branch-')
+        ? normalized.replace('branch-', '')
         : undefined;
       setEdges((eds: Edge[]) =>
         addEdge(
           {
             ...connection,
-            id: `edge-${connection.source}-${connection.sourceHandle}-${connection.target}`,
+            id: `edge-${connection.source}-${rawHandle}-${connection.target}`,
             label,
-            type: 'default',
+            type: 'journey',
+            markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: '#0b0c0c' },
           },
           eds
         )
@@ -114,6 +119,11 @@ export function Canvas({
     onNodeSelect(null);
   }, [onNodeSelect]);
 
+  const defaultEdgeOptions = {
+    type: 'journey' as const,
+    markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: '#0b0c0c' },
+  };
+
   return (
     <div className="canvas-wrapper" ref={reactFlowWrapper}>
       {nodes.length === 0 && (
@@ -140,10 +150,13 @@ export function Canvas({
           reactFlowInstance.current = instance;
         }}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        defaultEdgeOptions={defaultEdgeOptions}
         fitView
         deleteKeyCode={['Backspace', 'Delete']}
         snapToGrid
         snapGrid={[20, 20]}
+        connectionLineStyle={{ stroke: '#1d70b8', strokeWidth: 2.5 }}
       >
         <Controls />
         <MiniMap zoomable pannable />

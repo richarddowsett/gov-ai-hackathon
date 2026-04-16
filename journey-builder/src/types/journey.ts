@@ -30,6 +30,7 @@ export interface StringPage extends BasePage {
 export interface DatePage extends BasePage {
   type: 'datePage';
   index: number;
+  validation?: string;
 }
 
 export interface BooleanPage extends BasePage {
@@ -41,12 +42,14 @@ export interface RadioButtonPage extends BasePage {
   type: 'radioButton';
   index: Record<string, number>;
   options: string[];
+  validation?: string;
 }
 
 export interface CheckboxPage extends BasePage {
   type: 'checkbox';
   index: number;
   options: string[];
+  validation?: string;
 }
 
 export interface MultipleQuestionsPage extends BasePage {

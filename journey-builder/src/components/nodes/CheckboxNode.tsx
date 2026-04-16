@@ -6,7 +6,10 @@ export function CheckboxNode({ data, selected }: NodeProps) {
   const options: string[] = (d.options as string[]) ?? ['Option 1', 'Option 2'];
   return (
     <div className={`journey-node${selected ? ' selected' : ''}`}>
-      <Handle type="target" position={Position.Top} />
+      <Handle type="target" position={Position.Top} id="target-top" />
+      <Handle type="target" position={Position.Left} id="target-left" />
+      <Handle type="target" position={Position.Right} id="target-right" />
+      <Handle type="target" position={Position.Bottom} id="target-bottom" />
       <div className="node-header type-checkbox">
         <span className="node-page-number">#{d.pageNumber}</span>
         Checkboxes
@@ -27,6 +30,7 @@ export function CheckboxNode({ data, selected }: NodeProps) {
         </div>
       </div>
       <Handle type="source" position={Position.Bottom} id="next" />
+      <Handle type="source" position={Position.Right} id="next-right" className="handle-right-source" />
     </div>
   );
 }

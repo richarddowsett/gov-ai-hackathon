@@ -443,25 +443,55 @@ body {
 
 /* ── Handles ─────────────────────────────────────── */
 .react-flow__handle {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   border: 2px solid var(--gds-white);
   background: var(--gds-blue);
+  transition: transform 0.15s, background 0.15s, box-shadow 0.15s;
+  z-index: 10;
+}
+
+.react-flow__handle:hover {
+  transform: scale(1.4);
+  background: var(--gds-dark-blue);
+  box-shadow: 0 0 0 3px rgba(29,112,184,0.3);
 }
 
 .react-flow__handle-top {
-  top: -5px;
+  top: -6px;
 }
 
 .react-flow__handle-bottom {
-  bottom: -5px;
+  bottom: -6px;
+}
+
+.react-flow__handle-left {
+  left: -6px;
+}
+
+.react-flow__handle-right {
+  right: -6px;
+}
+
+.handle-right-source {
+  background: var(--gds-green);
+}
+
+.handle-branch-right {
+  background: #e8590c;
+  width: 10px;
+  height: 10px;
+}
+
+.branch-handles-section {
+  border-top: 1px solid var(--gds-grey-3);
 }
 
 .branch-handle-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 3px 12px;
+  padding: 4px 12px;
   font-size: 10px;
   color: var(--gds-grey-1);
   background: var(--gds-grey-4);
@@ -469,9 +499,22 @@ body {
   position: relative;
 }
 
+.branch-handle-row:first-child {
+  border-top: none;
+}
+
 .branch-handle-label {
-  font-weight: 600;
+  font-weight: 700;
   font-size: 10px;
+  letter-spacing: 0.3px;
+}
+
+.branch-label-true {
+  color: var(--gds-green);
+}
+
+.branch-label-false {
+  color: var(--gds-red);
 }
 
 /* ── Properties Panel ────────────────────────────── */
@@ -623,28 +666,47 @@ body {
 
 /* ── Edges ───────────────────────────────────────── */
 .react-flow__edge-path {
-  stroke: var(--gds-grey-1);
-  stroke-width: 2;
+  stroke: var(--gds-black);
+  stroke-width: 2.5;
+  stroke-linecap: round;
 }
 
 .react-flow__edge.selected .react-flow__edge-path {
   stroke: var(--gds-blue);
-  stroke-width: 3;
+  stroke-width: 3.5;
+}
+
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke-width: 3.5;
 }
 
 .react-flow__edge-text {
-  font-size: 11px;
-  fill: var(--gds-grey-1);
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--gds-black);
 }
 
-.edge-label-box {
+.react-flow__edge-interaction {
+  cursor: pointer;
+}
+
+.journey-edge-label {
   background: var(--gds-white);
-  border: 1px solid var(--gds-grey-2);
-  border-radius: 4px;
-  padding: 2px 8px;
+  border: 2px solid currentColor;
+  border-radius: 12px;
+  padding: 2px 10px;
   font-size: 11px;
-  font-weight: 600;
-  color: var(--gds-grey-1);
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  pointer-events: none;
+}
+
+.react-flow__connection-line {
+  stroke: var(--gds-blue);
+  stroke-width: 2.5;
+  stroke-dasharray: 6 3;
 }
 
 /* ── Minimap ─────────────────────────────────────── */

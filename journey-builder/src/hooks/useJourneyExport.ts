@@ -4,6 +4,21 @@ import type { PageNodeData } from '../components/nodes/nodeTypes';
 import type { Journey, Page } from '../types/journey';
 import { isBranchingType } from '../types/journey';
 
+/**
+ * Normalize source handle IDs: right-side handles have a `-right` suffix
+ * that should be stripped for logical matching.
+ */
+function normalizeHandle(handle: string | null | undefined): string {
+  if (!handle) return '';
+  return handle.replace(/-right$/, '');
+}
+
+function findEdgeByHandle(edges: Edge[], nodeId: string, handlePrefix: string): Edge | undefined {
+  return edges.find(
+    (e) => e.source === nodeId && normalizeHandle(e.sourceHandle) === handlePrefix
+  );
+}
+
 export function useJourneyExport() {
   const exportJourney = useCallback(
     (nodes: Node[], edges: Edge[]): Journey => {
@@ -24,8 +39,8 @@ export function useJourneyExport() {
         const outgoingEdges = edges.filter((e) => e.source === node.id);
 
         if (d.pageType === 'boolean') {
-          const trueEdge = outgoingEdges.find((e) => e.sourceHandle === 'branch-true');
-          const falseEdge = outgoingEdges.find((e) => e.sourceHandle === 'branch-false');
+          const trueEdge = findEdgeByHandle(outgoingEdges, node.id, 'branch-true');
+          const falseEdge = findEdgeByHandle(outgoingEdges, node.id, 'branch-false');
           const trueTarget = trueEdge ? nodeIdToPageNumber.get(trueEdge.target) ?? 0 : 0;
           const falseTarget = falseEdge ? nodeIdToPageNumber.get(falseEdge.target) ?? 0 : 0;
 
@@ -40,20 +55,26 @@ export function useJourneyExport() {
           const options = d.options ?? [];
           const indexMap: Record<string, number> = {};
           options.forEach((opt) => {
-            const edge = outgoingEdges.find((e) => e.sourceHandle === `branch-${opt}`);
+            const edge = findEdgeByHandle(outgoingEdges, node.id, `branch-${opt}`);
             const target = edge ? nodeIdToPageNumber.get(edge.target) ?? 0 : 0;
             indexMap[opt] = target;
           });
 
-          return {
-            type: 'radioButton' as const,
+          const page: Record<string, unknown> = {
+            type: 'radioButton',
             title: d.title,
             index: indexMap,
             options,
           };
+          if (d.validation && typeof d.validation === 'string') {
+            page.validation = d.validation;
+          }
+          return page as unknown as Page;
         }
 
-        const nextEdge = outgoingEdges.find((e) => e.sourceHandle === 'next');
+        const nextEdge = outgoingEdges.find(
+          (e) => normalizeHandle(e.sourceHandle) === 'next'
+        );
         const nextIndex = nextEdge ? nodeIdToPageNumber.get(nextEdge.target) ?? 0 : 0;
 
         const base = { title: d.title, index: nextIndex };
@@ -68,10 +89,20 @@ export function useJourneyExport() {
             }
             return page;
           }
-          case 'datePage':
-            return { type: 'datePage' as const, ...base };
-          case 'checkbox':
-            return { type: 'checkbox' as const, ...base, options: d.options ?? [] };
+          case 'datePage': {
+            const dp: Record<string, unknown> = { type: 'datePage', ...base };
+            if (d.validation && typeof d.validation === 'string') {
+              dp.validation = d.validation;
+            }
+            return dp as unknown as Page;
+          }
+          case 'checkbox': {
+            const cp: Record<string, unknown> = { type: 'checkbox', ...base, options: d.options ?? [] };
+            if (d.validation && typeof d.validation === 'string') {
+              cp.validation = d.validation;
+            }
+            return cp as unknown as Page;
+          }
           case 'multipleQuestionsPage': {
             const qs = d.questions ?? [{ questionTitle: '' }, { questionTitle: '' }];
             const page: Page = {
@@ -137,16 +168,16 @@ export function getWarnings(nodes: Node[], edges: Edge[]): string[] {
     const outgoing = edges.filter((e) => e.source === node.id);
     if (isBranchingType(d.pageType)) {
       if (d.pageType === 'boolean') {
-        if (!outgoing.find((e) => e.sourceHandle === 'branch-true')) {
+        if (!findEdgeByHandle(outgoing, node.id, 'branch-true')) {
           warnings.push(`Page #${d.pageNumber}: missing "True" connection`);
         }
-        if (!outgoing.find((e) => e.sourceHandle === 'branch-false')) {
+        if (!findEdgeByHandle(outgoing, node.id, 'branch-false')) {
           warnings.push(`Page #${d.pageNumber}: missing "False" connection`);
         }
       }
       if (d.pageType === 'radioButton') {
         (d.options ?? []).forEach((opt) => {
-          if (!outgoing.find((e) => e.sourceHandle === `branch-${opt}`)) {
+          if (!findEdgeByHandle(outgoing, node.id, `branch-${opt}`)) {
             warnings.push(`Page #${d.pageNumber}: missing connection for "${opt}"`);
           }
         });
