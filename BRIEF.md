@@ -13,14 +13,14 @@ built is correct?**
 ## Solution
 
 A single **JSON journey definition** acts as the **source of truth** — agreed by the
-interaction designer and the developer. From this JSON, we generate contract tests
-that validate:
+interaction designer and the developer. From this JSON, a reusable **journey-validation
+library** generates contract tests that validate a running Play Framework service:
 
-1. **Prototype pages** — does the HTML prototype match the journey contract?
-2. **Service implementation** — does the Scala/Play service implement the correct
-   pages, titles, types, and branching logic?
-3. **Drift detection** — if someone (or an AI agent) changes something, the validator
-   catches it immediately with a clear diff.
+1. **Page rendering** — does each page have the right title, form fields, and options?
+2. **Navigation** — do form submissions route to the correct next page for every
+   branching answer?
+3. **Full path coverage** — is every possible journey through the service valid
+   end-to-end?
 
 ## How It Works
 
@@ -31,11 +31,10 @@ Journey JSON (single source of truth)
         │
         ├── Enumerate all valid paths through the journey
         │
-        ├── Validate prototype HTML against each page's contract
-        │       ✓ title matches    ✓ form fields exist    ✓ options present
-        │
-        └── Validate service descriptor against each page's contract
-                ✓ route exists    ✓ page type matches    ✓ branching routes defined
+        └── Validate the Play service against the contract
+                ✓ page titles match      ✓ form elements exist
+                ✓ options present        ✓ navigation correct
+                ✓ all paths traversable
 ```
 
 ## The Story
@@ -43,9 +42,10 @@ Journey JSON (single source of truth)
 > "In this world of rapid AI-driven development, how do you guarantee that what you
 > designed is what you shipped?"
 >
-> With the Journey Contract Validator, you define the journey once in JSON, and the
-> contract tests guarantee that the prototype and the implementation match — every
-> page title, every form field, every branching path.
+> With the Journey Contract Validator, you define the journey once in JSON, add the
+> `journey-validation` library to your Play service, and get full end-to-end journey
+> testing for free — every page title, every form field, every branching path, every
+> navigation redirect.
 >
 > Change something? The tests fail. Immediately. With a clear message telling you
 > exactly what drifted.
@@ -53,15 +53,17 @@ Journey JSON (single source of truth)
 ## Running
 
 ```bash
-sbt test                                   # run everything
-./scripts/validate-journey.sh prototype    # validate prototype only
-./scripts/validate-journey.sh service      # validate service only
-./scripts/validate-journey.sh drift        # run drift detection tests
-./scripts/demo.sh                          # full demo walkthrough
+sbt test                          # run all tests (library + Play service)
+sbt "exampleService/test"         # validate the example Play service
+sbt "exampleService/run"          # browse the service at localhost:9000
+./scripts/validate-journey.sh     # run via helper script
+./scripts/demo.sh                 # interactive drift detection demo
+python3 prototype/server.py       # browse the HTML prototype at localhost:4000
 ```
 
 ## Future Vision
 
+- Published library on Maven Central for any Play service to depend on
 - Cross-framework validation (Play, Node.js, React)
 - Central validation API for government-wide journey contracts
 - AI-generated PR fixes when drift is detected
