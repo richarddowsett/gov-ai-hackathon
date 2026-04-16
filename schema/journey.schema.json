@@ -27,6 +27,10 @@
                   "maxLength": 50
                 },
                 "minItems": 1
+              },
+              "validation": {
+                "type": "string",
+                "maxLength": 100
               }
             },
             "required": ["type", "title", "index", "options"],
@@ -45,6 +49,10 @@
               "index": {
                 "type": "integer",
                 "minimum": 0
+              },
+              "validation": {
+                "type": "string",
+                "maxLength": 100
               }
             },
             "required": ["type", "title", "index"],
@@ -136,6 +144,10 @@
                   "maxLength": 50
                 },
                 "minItems": 1
+              },
+              "validation": {
+                "type": "string",
+                "maxLength": 100
               }
             },
             "required": ["type", "title", "index", "options"],
