@@ -73,7 +73,8 @@ echo ""
 # --- Step 4: Re-validate (should fail) ---
 echo -e "${YELLOW}Step 4: Re-validating — should FAIL with drift detected${NC}"
 echo "---------------------------------------------"
-if sbt "testOnly contract.JourneyContractSpec" 2>&1 | tail -20; then
+# 'clean' forces sbt to re-run tests (otherwise it caches results when source is unchanged)
+if sbt clean "testOnly contract.JourneyContractSpec" 2>&1 | tail -20; then
   echo -e "${RED}Expected failure but tests passed — something is wrong.${NC}"
 else
   echo -e "${GREEN}Drift detected! The validator caught the mismatch.${NC}"
