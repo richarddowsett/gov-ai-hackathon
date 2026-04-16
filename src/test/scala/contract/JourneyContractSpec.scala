@@ -61,8 +61,12 @@ class JourneyContractSpec extends AnyFreeSpec with Matchers with BeforeAndAfterA
 
   private def logResults(results: List[ValidationResult]): Unit =
     results.foreach {
-      case Pass(check)                   => info(s"  ✅  $check")
-      case Fail(check, expected, actual) => info(s"  ❌  $check\n        expected : $expected\n        actual   : $actual")
+      case Pass(check) => info(s"  ✅  $check")
+      case f: Fail =>
+        val base = s"  ❌  ${f.check}\n        expected : ${f.expected}\n        actual   : ${f.actual}"
+        val contract = f.contractRef.map(r => s"\n        contract : $r").getOrElse("")
+        val fix      = f.sourceRef.map(r =>   s"\n        fix at   : $r").getOrElse("")
+        info(base + contract + fix)
     }
 
   // ─── 1. Schema structure ─────────────────────────────────────────────
@@ -152,8 +156,10 @@ class JourneyContractSpec extends AnyFreeSpec with Matchers with BeforeAndAfterA
     journey.pages.toList.zipWithIndex.foreach { case (page, idx) =>
 
       s"page[$idx] (${page.pageType}) '${page.title}'" in {
-        val html    = fetchPage(idx)
-        val results = PrototypeValidator.validateHtml(html, page, s"page[$idx]")
+        val html      = fetchPage(idx)
+        val protoFile = SourceLocator.prototypeFile(protoDir, idx)
+        val ctx       = Some(PrototypeValidator.FileContext(journeyPath, protoFile))
+        val results   = PrototypeValidator.validateHtml(html, page, s"page[$idx]", ctx)
 
         logResults(results)
 
@@ -168,8 +174,10 @@ class JourneyContractSpec extends AnyFreeSpec with Matchers with BeforeAndAfterA
 
       s"full path ${i + 1}: ${path.description}" in {
         val allResults = path.steps.flatMap { step =>
-          val html = fetchPage(step.arrayIndex)
-          PrototypeValidator.validateHtml(html, step.page, s"page[${step.arrayIndex}]")
+          val html      = fetchPage(step.arrayIndex)
+          val protoFile = SourceLocator.prototypeFile(protoDir, step.arrayIndex)
+          val ctx       = Some(PrototypeValidator.FileContext(journeyPath, protoFile))
+          PrototypeValidator.validateHtml(html, step.page, s"page[${step.arrayIndex}]", ctx)
         }
 
         info(s"  Traversed ${path.steps.size} pages")
@@ -193,7 +201,8 @@ class JourneyContractSpec extends AnyFreeSpec with Matchers with BeforeAndAfterA
         case Left(err) => fail(s"Could not load service descriptor ($servicePath): $err")
       }
 
-      val report = ServiceValidator.validate(journey, sd)
+      val ctx    = Some(ServiceValidator.FileContext(journeyPath, servicePath))
+      val report = ServiceValidator.validate(journey, sd, ctx)
 
       logResults(report.results)
       info(s"\n  ${report.passes.size} passed, ${report.failures.size} failed out of ${report.results.size} checks")

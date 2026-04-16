@@ -19,6 +19,11 @@ object Question {
   implicit val reads: Reads[Question] = Json.reads[Question]
 }
 
+/** Points at a specific line in a source file, used in failure messages. */
+case class SourceRef(file: String, line: Int) {
+  override def toString: String = s"$file:$line"
+}
+
 /** A page in the journey, as defined by the JSON contract.
   *
   * @param pageType    one of: contentPage, string, datePage, boolean, radioButton, checkbox, multipleQuestionsPage

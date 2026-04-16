@@ -43,10 +43,16 @@ object ServiceDescriptor {
 
 /** Validates a service descriptor against the journey JSON contract.
   * All checks are derived from the JSON — no hardcoded expectations.
+  * When file paths are provided, failures include exact line references.
   */
 object ServiceValidator {
 
-  def validate(journey: Journey, service: ServiceDescriptor): ValidationReport = {
+  case class FileContext(
+      journeyFile: String,
+      serviceFile: String
+  )
+
+  def validate(journey: Journey, service: ServiceDescriptor, ctx: Option[FileContext] = None): ValidationReport = {
     val routesByTitle = service.routes.groupBy(_.title)
 
     val results: List[ValidationResult] = journey.pages.toList.zipWithIndex.flatMap {
@@ -54,14 +60,18 @@ object ServiceValidator {
         val label = s"page[$idx] '${page.title}'"
         routesByTitle.get(page.title) match {
           case None =>
-            List(Fail(s"$label — route exists", "a matching service route", "no route found"))
+            List(Fail(s"$label — route exists", "a matching service route", "no route found",
+              contractRef = ctx.flatMap(c => SourceLocator.journeyPageTitle(c.journeyFile, page.title)),
+              sourceRef   = ctx.map(c => SourceRef(c.serviceFile, 1))))
 
           case Some(matchingRoutes) =>
             val route = matchingRoutes.head
 
             val typeCheck =
               if (route.pageType == page.pageType) Pass(s"$label — type matches")
-              else Fail(s"$label — type", page.pageType, route.pageType)
+              else Fail(s"$label — type", page.pageType, route.pageType,
+                contractRef = ctx.flatMap(c => SourceLocator.journeyPageType(c.journeyFile, page.pageType, page.title)),
+                sourceRef   = ctx.flatMap(c => SourceLocator.serviceRouteType(c.serviceFile, page.title)))
 
             val titleCheck = Pass(s"$label — title matches")
 
@@ -71,7 +81,9 @@ object ServiceValidator {
                   if (route.nextRoutes.contains(answer))
                     Pass(s"$label — branching route for '$answer' exists")
                   else
-                    Fail(s"$label — branching route", s"route for answer '$answer'", "not defined in service")
+                    Fail(s"$label — branching route", s"route for answer '$answer'", "not defined in service",
+                      contractRef = ctx.flatMap(c => SourceLocator.journeyPageTitle(c.journeyFile, page.title)),
+                      sourceRef   = ctx.flatMap(c => SourceLocator.serviceNextRoutes(c.serviceFile, page.title)))
                 }
               case _ => Nil
             }

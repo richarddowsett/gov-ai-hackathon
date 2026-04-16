@@ -21,8 +21,15 @@ class DriftDetectionSpec extends AnyFreeSpec with Matchers {
 
   private def logResults(results: List[ValidationResult]): Unit =
     results.foreach {
-      case Pass(check)                   => info(s"  ✅  $check")
-      case Fail(check, expected, actual) => info(s"  ❌  $check — expected: '$expected', actual: '$actual'")
+      case Pass(check) => info(s"  ✅  $check")
+      case f: Fail =>
+        val base = s"  ❌  ${f.check} — expected: '${f.expected}', actual: '${f.actual}'"
+        val refs = List(
+          f.contractRef.map(r => s"contract: $r"),
+          f.sourceRef.map(r => s"fix at: $r")
+        ).flatten
+        val suffix = if (refs.nonEmpty) s"\n        ${refs.mkString("  |  ")}" else ""
+        info(base + suffix)
     }
 
   "Drift detection" - {

@@ -28,7 +28,7 @@ class EmbeddedServer(prototypeDir: String, port: Int = 0) {
       val index = path.stripPrefix("/page/").takeWhile(_.isDigit)
 
       val dir   = new File(prototypeDir)
-      val files = dir.listFiles().filter(_.getName.startsWith(s"page-$index-"))
+      val files = dir.listFiles().filter(f => f.getName.startsWith(s"page-$index-") && f.getName.endsWith(".html"))
 
       val (code, body) = files.headOption match {
         case Some(file) =>
