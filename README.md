@@ -236,13 +236,30 @@ The validator reports:
 FAIL  page[1] title — Expected 'What is your name?', got 'What's your name?'
 ```
 
-The `DriftDetectionSpec` test suite demonstrates this with 6 scenarios:
+The `DriftDetectionSpec` test suite demonstrates this with 5 scenarios:
 - Title mismatch
 - Missing form field
 - Missing radio option
 - Missing service route
-- Page type mismatch in service
 - Correct page (control case)
+
+### Interactive Demo
+
+Run the demo script to see drift detection in action end-to-end:
+
+```bash
+chmod +x scripts/demo.sh
+./scripts/demo.sh
+```
+
+The demo walks through five steps:
+1. **Shows the journey** — prints every page from the JSON with its type, title, and navigation
+2. **Validates the prototype + service** — runs `JourneyContractSpec` (should pass)
+3. **Introduces drift** — changes `"What is your name?"` to `"What's your name?"` in the prototype HTML
+4. **Re-validates** — runs the same spec again (should fail with a clear title mismatch)
+5. **Reverts the change** — restores the original prototype file
+
+The whole thing takes about 30 seconds and leaves the repo in a clean state.
 
 ## How to Add Your Own Journey
 
