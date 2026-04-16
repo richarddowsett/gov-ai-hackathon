@@ -132,8 +132,13 @@ export function useJourneyExport() {
     const a = document.createElement('a');
     a.href = url;
     a.download = 'journey.json';
+    a.style.display = 'none';
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
   }, []);
 
   return { exportJourney, downloadJson };
