@@ -39,6 +39,7 @@ services:
       - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./journey-storage/conf/docker-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U journey_user -d journey"]
       interval: 10s
@@ -46,5 +47,34 @@ services:
       retries: 10
     restart: unless-stopped
 
+  journey-storage:
+    image: sbtscala/scala-sbt:eclipse-temurin-21.0.8_9_1.12.9_3.8.3
+    working_dir: /workspace
+    command:
+      [
+        "sbt",
+        "-Dplay.server.http.address=0.0.0.0",
+        "-Dplay.server.http.port=9000",
+        "storageService/run",
+      ]
+    environment:
+      JDBC_DATABASE_URL: "jdbc:postgresql://postgres:5432/journey"
+      JDBC_DATABASE_USERNAME: "journey_user"
+      JDBC_DATABASE_PASSWORD: "journey_pass"
+    volumes:
+      - ./:/workspace
+      - sbt_cache:/root/.sbt
+      - ivy_cache:/root/.ivy2
+      - coursier_cache:/root/.cache/coursier
+    ports:
+      - "9000:9000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   postgres_data:
+  sbt_cache:
+  ivy_cache:
+  coursier_cache:

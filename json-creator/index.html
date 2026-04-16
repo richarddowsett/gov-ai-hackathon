@@ -38,6 +38,26 @@
           <button id="preset-reset" type="button" class="govuk-button govuk-button--warning">Reset Builder</button>
         </div>
 
+        <div class="storage-panel">
+          <h2 class="govuk-heading-s">Storage API</h2>
+          <div class="storage-grid">
+            <div class="govuk-form-group">
+              <label for="api-base" class="govuk-label">API Base URL</label>
+              <input id="api-base" class="govuk-input" value="http://127.0.0.1:9000" />
+            </div>
+            <div class="govuk-form-group">
+              <label for="service-name" class="govuk-label">Service Name</label>
+              <input id="service-name" class="govuk-input" placeholder="e.g. driving-licence-renewal" />
+            </div>
+          </div>
+          <div class="govuk-button-group">
+            <button id="save-api" type="button" class="govuk-button govuk-button--secondary">Save To API</button>
+            <button id="load-api" type="button" class="govuk-button govuk-button--secondary">Load From API</button>
+            <button id="list-api" type="button" class="govuk-button govuk-button--secondary">List Saved Journeys</button>
+          </div>
+          <div id="storage-list"></div>
+        </div>
+
         <div id="messages"></div>
 
         <div class="creator-layout">

@@ -321,6 +321,7 @@ Run browser apps plus Postgres with one command:
 Services:
 - JSON Creator: `http://127.0.0.1:8787`
 - Prototype: `http://127.0.0.1:4000`
+- Journey Storage API: `http://127.0.0.1:9000/journeys`
 - Postgres: `127.0.0.1:5433` by default (`journey` / `journey_user` / `journey_pass`)
 
 If `5433` is also taken:

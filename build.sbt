@@ -1,3 +1,20 @@
+lazy val storageService = (project in file("journey-storage"))
+  .enablePlugins(PlayScala)
+  .settings(
+    name         := "journey-storage",
+    version      := "0.1.0",
+    scalaVersion := "2.13.16",
+    libraryDependencies ++= Seq(
+      guice,
+      jdbc,
+      filters,
+      evolutions,
+      "org.postgresql" % "postgresql" % "42.7.3"
+    )
+  )
+
+addCommandAlias("journeyStorage", "storageService/run")
+
 lazy val root = (project in file("."))
   .settings(
     name         := "journey-validator",

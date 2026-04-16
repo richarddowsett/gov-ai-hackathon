@@ -65,6 +65,9 @@ const outputEl = document.getElementById("json-output");
 const messagesEl = document.getElementById("messages");
 const validationSummaryEl = document.getElementById("validation-summary");
 const graphEl = document.getElementById("graph");
+const storageListEl = document.getElementById("storage-list");
+const apiBaseEl = document.getElementById("api-base");
+const serviceNameEl = document.getElementById("service-name");
 
 for (const t of pageTypes) {
   const opt = document.createElement("option");
@@ -211,25 +214,124 @@ document.getElementById("import-json").addEventListener("click", () => {
     return;
   }
 
-  if (!parsed.pages.length) {
-    showMessage("Imported JSON pages array cannot be empty.", "error");
+  importJourneyObject(parsed, "JSON imported and normalized.");
+});
+
+document.getElementById("save-api").addEventListener("click", async () => {
+  const serviceName = getServiceName();
+  if (!serviceName) {
+    showMessage("Enter a service name before saving.", "error");
     return;
   }
 
-  const converted = [];
-  for (let i = 0; i < parsed.pages.length; i += 1) {
-    const p = parsed.pages[i];
-    try {
-      converted.push(fromExternalPage(p));
-    } catch (e) {
-      showMessage(`Import issue at pages[${i}]: ${String(e)}`, "error");
-      return;
-    }
+  const result = validateAndBuild();
+  if (result.errors.length) {
+    showMessage(`Cannot save: ${result.errors[0]}`, "error");
+    return;
   }
 
-  state.pages = converted;
-  render();
-  showMessage("JSON imported and normalized.", "success");
+  const payload = {
+    serviceName,
+    json: JSON.stringify(result.json),
+  };
+
+  const encoded = encodeURIComponent(serviceName);
+  const updateRes = await apiRequest(`/journeys/${encoded}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+
+  if (updateRes.ok) {
+    showMessage(`Saved '${serviceName}' (updated).`, "success");
+    return;
+  }
+
+  if (updateRes.status !== 404) {
+    showMessage(`Save failed (${updateRes.status}): ${updateRes.error || "unknown error"}`, "error");
+    return;
+  }
+
+  const createRes = await apiRequest("/journeys", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+  if (createRes.ok) {
+    showMessage(`Saved '${serviceName}' (created).`, "success");
+    return;
+  }
+
+  showMessage(`Save failed (${createRes.status}): ${createRes.error || "unknown error"}`, "error");
+});
+
+document.getElementById("load-api").addEventListener("click", async () => {
+  const serviceName = getServiceName();
+  if (!serviceName) {
+    showMessage("Enter a service name before loading.", "error");
+    return;
+  }
+
+  const encoded = encodeURIComponent(serviceName);
+  const res = await apiRequest(`/journeys/${encoded}`, { method: "GET" });
+  if (!res.ok) {
+    showMessage(`Load failed (${res.status}): ${res.error || "unknown error"}`, "error");
+    return;
+  }
+
+  const raw = res.data?.json;
+  if (typeof raw !== "string") {
+    showMessage("Load failed: API response missing JSON payload string.", "error");
+    return;
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    showMessage(`Stored JSON is invalid. ${parseErrorHint(raw, err)}`, "error");
+    return;
+  }
+
+  importJourneyObject(parsed, `Loaded '${serviceName}' from API.`);
+});
+
+document.getElementById("list-api").addEventListener("click", async () => {
+  const res = await apiRequest("/journeys", { method: "GET" });
+  if (!res.ok) {
+    showMessage(`List failed (${res.status}): ${res.error || "unknown error"}`, "error");
+    return;
+  }
+
+  const items = Array.isArray(res.data) ? res.data : [];
+  if (!items.length) {
+    storageListEl.innerHTML = "<p class=\"govuk-body-s\">No saved journeys.</p>";
+    showMessage("No saved journeys found.", "info");
+    return;
+  }
+
+  storageListEl.innerHTML = items
+    .map((j) => {
+      const rawName = String(j.serviceName || "");
+      const name = escapeHtml(rawName);
+      const encoded = encodeURIComponent(rawName);
+      return `
+        <div class="storage-item">
+          <span>${name}</span>
+          <button type="button" data-load-name="${encoded}">Load</button>
+        </div>
+      `;
+    })
+    .join("");
+
+  storageListEl.querySelectorAll("[data-load-name]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const encodedName = btn.getAttribute("data-load-name") || "";
+      serviceNameEl.value = decodeURIComponent(encodedName);
+      document.getElementById("load-api").click();
+    });
+  });
+
+  showMessage(`Found ${items.length} saved journey(s).`, "success");
 });
 
 async function initSchemaValidation() {
@@ -296,7 +398,102 @@ function toInt(v) {
   return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0;
 }
 
+function normalizeText(v) {
+  return String(v || "").trim().toLowerCase();
+}
+
+function findDuplicateLabels(values) {
+  const seen = new Set();
+  const dupes = new Set();
+  values.forEach((v) => {
+    const key = normalizeText(v);
+    if (!key) return;
+    if (seen.has(key)) dupes.add(key);
+    seen.add(key);
+  });
+  return [...dupes];
+}
+
+function regexSafetyIssue(rx) {
+  const source = String(rx || "");
+  if (!source) return null;
+  if (source.length > 120) return "Regex is very long; simplify to reduce risk.";
+  if (/\\\d/.test(source)) return "Backreferences are not allowed in validation regex.";
+  if (/\((?:[^()]*[+*][^()]*)\)[+*{]/.test(source)) {
+    return "Nested quantifiers can cause slow regex performance.";
+  }
+  if (/\((?:\.\*|\.\+)[^()]*\)[+*{]/.test(source)) {
+    return "Greedy wildcard with quantifier can cause catastrophic backtracking.";
+  }
+  return null;
+}
+
+function importJourneyObject(parsed, successMessage) {
+  if (!parsed.pages.length) {
+    showMessage("Imported JSON pages array cannot be empty.", "error");
+    return;
+  }
+
+  const converted = [];
+  for (let i = 0; i < parsed.pages.length; i += 1) {
+    const p = parsed.pages[i];
+    try {
+      converted.push(fromExternalPage(p));
+    } catch (e) {
+      showMessage(`Import issue at pages[${i}]: ${String(e)}`, "error");
+      return;
+    }
+  }
+
+  state.pages = converted;
+  render();
+  showMessage(successMessage, "success");
+}
+
+function getApiBase() {
+  return (apiBaseEl.value || "").trim().replace(/\/+$/, "");
+}
+
+function getServiceName() {
+  return (serviceNameEl.value || "").trim();
+}
+
+async function apiRequest(path, opts) {
+  const base = getApiBase();
+  if (!base) {
+    return { ok: false, status: 0, error: "API Base URL is required." };
+  }
+
+  const url = `${base}${path}`;
+  try {
+    const res = await fetch(url, {
+      ...opts,
+      headers: {
+        ...(opts?.headers || {}),
+        ...(opts?.body ? { "Content-Type": "application/json" } : {}),
+      },
+    });
+
+    const text = await res.text();
+    let data = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = null;
+    }
+
+    const error = data?.error || (text && !res.ok ? text : null);
+    return { ok: res.ok, status: res.status, data, error };
+  } catch (err) {
+    return { ok: false, status: 0, error: String(err) };
+  }
+}
+
 function parseErrorHint(raw, err) {
+  const trimmed = raw.trimStart().slice(0, 120).toLowerCase();
+  if (trimmed.startsWith("<!doctype") || trimmed.startsWith("<html")) {
+    return "Input appears to be HTML, not JSON (for example an error page response).";
+  }
   const m = String(err?.message || err).match(/position\s+(\d+)/i);
   if (!m) return String(err);
   const pos = Number(m[1]);
@@ -334,19 +531,39 @@ function validateAndBuild() {
         new RegExp(rx);
       } catch {
         perPage[i].errors.push(`${label} is not a valid regex.`);
+        return;
+      }
+
+      const safety = regexSafetyIssue(rx);
+      if (safety) {
+        perPage[i].errors.push(`${label} may be unsafe: ${safety}`);
       }
     };
 
     if (p.type === "boolean") {
       item.index = { true: toInt(p.boolTrue), false: toInt(p.boolFalse) };
+      if (item.index.true === item.index.false) {
+        perPage[i].warnings.push("true/false both go to the same page.");
+      }
     } else if (p.type === "radioButton") {
-      const options = (p.options || []).map((x) => (x || "").trim()).filter(Boolean);
+      const rawOptions = Array.isArray(p.options) ? p.options : [];
+      const rawTargets = Array.isArray(p.optionTargets) ? p.optionTargets : [];
+      const optionPairs = rawOptions
+        .map((label, idx) => ({ label: (label || "").trim(), target: toInt(rawTargets[idx] ?? 0) }))
+        .filter((x) => x.label);
+      const options = optionPairs.map((x) => x.label);
+
+      if (rawTargets.length !== rawOptions.length) {
+        perPage[i].errors.push("Option target count must match options count.");
+      }
       if (!options.length) perPage[i].errors.push("radioButton requires at least one option.");
       if (options.some((x) => x.length > 50)) perPage[i].errors.push("Option labels must be 50 chars or less.");
+      const duplicates = findDuplicateLabels(options);
+      if (duplicates.length) perPage[i].errors.push("Option labels must be unique.");
       item.options = options;
       item.index = {};
-      options.forEach((opt, idx) => {
-        item.index[opt] = toInt((p.optionTargets || [])[idx] ?? 0);
+      optionPairs.forEach((pair) => {
+        item.index[pair.label] = pair.target;
       });
     } else {
       item.index = toInt(p.index);
@@ -356,10 +573,14 @@ function validateAndBuild() {
       const options = (p.options || []).map((x) => (x || "").trim()).filter(Boolean);
       if (!options.length) perPage[i].errors.push("checkbox requires at least one option.");
       if (options.some((x) => x.length > 50)) perPage[i].errors.push("Option labels must be 50 chars or less.");
+      const duplicates = findDuplicateLabels(options);
+      if (duplicates.length) perPage[i].errors.push("Option labels must be unique.");
       item.options = options;
     }
 
     if (p.type === "multipleQuestionsPage") {
+      if ((p.questions || []).length !== 2) perPage[i].errors.push("Exactly two question titles are required.");
+      if ((p.validations || []).length !== 2) perPage[i].errors.push("Exactly two validation regex values are required.");
       const q1 = (p.questions?.[0] || "").trim();
       const q2 = (p.questions?.[1] || "").trim();
       if (!q1 || !q2) perPage[i].errors.push("Two question titles are required.");
@@ -375,6 +596,7 @@ function validateAndBuild() {
 
     if (p.type === "string") {
       const rx = (p.stringValidation || "").trim();
+      if (!rx) perPage[i].errors.push("string page requires a validation regex.");
       if (rx) item.validation = rx;
       checkRegex(rx, "Validation regex");
     }
@@ -399,6 +621,7 @@ function validateAndBuild() {
   }
 
   const graph = analyzeGraph(json.pages);
+  graph.errors.forEach((e) => errors.push(e));
   graph.warnings.forEach((w) => warnings.push(w));
 
   for (const [idx, ws] of graph.perPageWarnings.entries()) {
@@ -415,6 +638,7 @@ function analyzeGraph(pages) {
     return Object.values(page.index || {}).map((x) => Number(x));
   });
 
+  const errors = [];
   const warnings = [];
   const perPageWarnings = new Map();
   const inRange = (x) => Number.isFinite(x) && x >= 0 && x < n;
@@ -452,6 +676,12 @@ function analyzeGraph(pages) {
       if (!perPageWarnings.has(i)) perPageWarnings.set(i, []);
       perPageWarnings.get(i).push("Large target index");
     }
+
+    if (targets.some((t) => t === i)) {
+      warnings.push(`Page ${i + 1} links to itself.`);
+      if (!perPageWarnings.has(i)) perPageWarnings.set(i, []);
+      perPageWarnings.get(i).push("Self-loop");
+    }
   }
 
   const visiting = new Set();
@@ -473,7 +703,42 @@ function analyzeGraph(pages) {
   for (let i = 0; i < n; i += 1) dfs(i);
   if (hasCycle) warnings.push("Journey contains a loop/cycle.");
 
-  return { edges, warnings, perPageWarnings, reachable };
+  const endReachMemo = new Map();
+  const canReachEnd = (node, stack) => {
+    if (endReachMemo.has(node)) return endReachMemo.get(node);
+    if (stack.has(node)) return false;
+
+    const targets = edges[node] || [];
+    if (targets.some((t) => !inRange(t))) {
+      endReachMemo.set(node, true);
+      return true;
+    }
+
+    stack.add(node);
+    for (const t of targets) {
+      if (inRange(t) && canReachEnd(t, stack)) {
+        stack.delete(node);
+        endReachMemo.set(node, true);
+        return true;
+      }
+    }
+    stack.delete(node);
+    endReachMemo.set(node, false);
+    return false;
+  };
+
+  if (n > 0 && !canReachEnd(0, new Set())) {
+    errors.push("No terminal path from Page 1 (all routes loop without reaching END).");
+  }
+
+  for (let i = 0; i < n; i += 1) {
+    if (reachable.has(i) && !canReachEnd(i, new Set())) {
+      if (!perPageWarnings.has(i)) perPageWarnings.set(i, []);
+      perPageWarnings.get(i).push("Cannot reach END from this page");
+    }
+  }
+
+  return { edges, errors, warnings, perPageWarnings, reachable };
 }
 
 function showMessage(message, type) {

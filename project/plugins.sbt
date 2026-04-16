@@ -1,1 +1,1 @@
-// intentionally empty — no plugins required for this project
+addSbtPlugin("org.playframework" % "sbt-plugin" % "3.0.6")

@@ -16,6 +16,13 @@ Open:
 
 - JSON Creator: http://127.0.0.1:8787/
 - Prototype app: http://127.0.0.1:4000/
+- Journey Storage API: http://127.0.0.1:9000/journeys
+
+In JSON Creator, use the **Storage API** panel:
+
+- Set API Base URL (`http://127.0.0.1:9000`)
+- Enter a Service Name
+- Use **Save To API**, **Load From API**, and **List Saved Journeys**
 
 Postgres is included for persistence work:
 
@@ -38,6 +45,14 @@ docker compose down
 # or:
 ./scripts/docker-down.sh
 ```
+
+Quick backend check:
+
+```bash
+curl http://127.0.0.1:9000/journeys
+```
+
+Note: first `journey-storage` startup can take a few minutes while SBT downloads dependencies.
 
 ## Start
 
