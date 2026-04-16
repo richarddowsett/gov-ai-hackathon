@@ -1,0 +1,20 @@
+# SBT
+target/
+project/target/
+project/project/
+
+# SBT server
+.bsp/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Metals (Scala LSP)
+.metals/
+.bloop/
+
+# OS
+.DS_Store
+Thumbs.db
