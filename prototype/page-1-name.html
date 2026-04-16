@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en" class="govuk-template">
+<head>
+  <meta charset="utf-8">
+  <title>What is your name? - GOV.UK</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body class="govuk-template__body">
+  <div class="govuk-width-container">
+    <main class="govuk-main-wrapper" role="main">
+      <form action="/page-2-dob" method="post">
+        <div class="govuk-form-group">
+          <h1 class="govuk-heading-xl">
+            <label class="govuk-label govuk-label--xl" for="full-name">What is your name?</label>
+          </h1>
+          <input class="govuk-input" id="full-name" name="fullName" type="text"
+                 pattern="^[a-zA-Z\s]{1,100}$">
+        </div>
+        <button type="submit" class="govuk-button">Continue</button>
+      </form>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,11 @@
+target/
+.bsp/
+.idea/
+.metals/
+.bloop/
+metals.sbt
+*.class
+*.log
+*.swp
+*~
+.DS_Store
