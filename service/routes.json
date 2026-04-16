@@ -1,0 +1,74 @@
+{
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/welcome",
+      "pageType": "contentPage",
+      "title": "Welcome to our survey"
+    },
+    {
+      "method": "GET",
+      "path": "/name",
+      "pageType": "string",
+      "title": "What is your name?"
+    },
+    {
+      "method": "GET",
+      "path": "/date-of-birth",
+      "pageType": "datePage",
+      "title": "What is your date of birth?"
+    },
+    {
+      "method": "GET",
+      "path": "/drivers-license",
+      "pageType": "boolean",
+      "title": "Do you have a driver's license?",
+      "nextRoutes": {
+        "true": "/vehicle-type",
+        "false": "/transport-method"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/vehicle-type",
+      "pageType": "radioButton",
+      "title": "What type of vehicle do you own?",
+      "nextRoutes": {
+        "Car": "/vehicle-features",
+        "Motorcycle": "/vehicle-features",
+        "Truck": "/vehicle-features",
+        "Other": "/transport-method"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/vehicle-features",
+      "pageType": "checkbox",
+      "title": "Select all vehicle features you have:"
+    },
+    {
+      "method": "GET",
+      "path": "/transport-method",
+      "pageType": "radioButton",
+      "title": "What is your preferred transportation method?",
+      "nextRoutes": {
+        "Public Transport": "/thank-you",
+        "Personal Vehicle": "/thank-you",
+        "Bicycle": "/thank-you",
+        "Walking": "/thank-you"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/rate-experience",
+      "pageType": "multipleQuestionsPage",
+      "title": "Rate your experience"
+    },
+    {
+      "method": "GET",
+      "path": "/thank-you",
+      "pageType": "contentPage",
+      "title": "Thank you for completing the survey!"
+    }
+  ]
+}

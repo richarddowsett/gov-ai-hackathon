@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS journeys (
+  service_name VARCHAR(255) PRIMARY KEY,
+  json TEXT NOT NULL
+);

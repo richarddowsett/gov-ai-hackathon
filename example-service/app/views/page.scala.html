@@ -1,0 +1,99 @@
+@import journeyvalidation._
+
+@(page: Page, pageIndex: Int)
+
+@main(page.title) {
+    <h1 class="govuk-heading-xl">@page.title</h1>
+
+    <form method="post" action="@controllers.routes.JourneyController.submitPage(pageIndex)" novalidate>
+
+        @page.pageType match {
+
+            case "contentPage" => {
+                <button type="submit" class="govuk-button">Continue</button>
+            }
+
+            case "string" => {
+                <div class="govuk-form-group">
+                    <input class="govuk-input" type="text" name="value" id="value">
+                </div>
+                <button type="submit" class="govuk-button">Continue</button>
+            }
+
+            case "datePage" => {
+                <div class="govuk-date-input">
+                    <div class="govuk-date-input__item">
+                        <label class="govuk-label" for="day">Day</label>
+                        <input class="govuk-input govuk-date-input__input govuk-input--width-2"
+                               type="text" name="day" id="day">
+                    </div>
+                    <div class="govuk-date-input__item">
+                        <label class="govuk-label" for="month">Month</label>
+                        <input class="govuk-input govuk-date-input__input govuk-input--width-2"
+                               type="text" name="month" id="month">
+                    </div>
+                    <div class="govuk-date-input__item">
+                        <label class="govuk-label" for="year">Year</label>
+                        <input class="govuk-input govuk-date-input__input govuk-input--width-4"
+                               type="text" name="year" id="year">
+                    </div>
+                </div>
+                <button type="submit" class="govuk-button">Continue</button>
+            }
+
+            case "boolean" => {
+                <div class="govuk-radios">
+                    <div class="govuk-radios__item">
+                        <input class="govuk-radios__input" type="radio" name="value" value="true" id="value-yes">
+                        <label class="govuk-radios__label" for="value-yes">Yes</label>
+                    </div>
+                    <div class="govuk-radios__item">
+                        <input class="govuk-radios__input" type="radio" name="value" value="false" id="value-no">
+                        <label class="govuk-radios__label" for="value-no">No</label>
+                    </div>
+                </div>
+                <button type="submit" class="govuk-button">Continue</button>
+            }
+
+            case "radioButton" => {
+                <div class="govuk-radios">
+                    @for((option, i) <- page.options.zipWithIndex) {
+                        <div class="govuk-radios__item">
+                            <input class="govuk-radios__input" type="radio"
+                                   name="value" value="@option" id="value-@i">
+                            <label class="govuk-radios__label" for="value-@i">@option</label>
+                        </div>
+                    }
+                </div>
+                <button type="submit" class="govuk-button">Continue</button>
+            }
+
+            case "checkbox" => {
+                <div class="govuk-checkboxes">
+                    @for((option, i) <- page.options.zipWithIndex) {
+                        <div class="govuk-checkboxes__item">
+                            <input class="govuk-checkboxes__input" type="checkbox"
+                                   name="value[]" value="@option" id="value-@i">
+                            <label class="govuk-checkboxes__label" for="value-@i">@option</label>
+                        </div>
+                    }
+                </div>
+                <button type="submit" class="govuk-button">Continue</button>
+            }
+
+            case "multipleQuestionsPage" => {
+                @for((question, i) <- page.questions.zipWithIndex) {
+                    <div class="govuk-form-group">
+                        <label class="govuk-label" for="question_@i">@question.questionTitle</label>
+                        <input class="govuk-input" type="text" name="question_@i" id="question_@i">
+                    </div>
+                }
+                <button type="submit" class="govuk-button">Continue</button>
+            }
+
+            case _ => {
+                <p class="govuk-body">Unknown page type: @page.pageType</p>
+            }
+        }
+    </form>
+}

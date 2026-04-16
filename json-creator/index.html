@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Journey JSON Creator</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/govuk-frontend@5.7.1/dist/govuk/govuk-frontend.min.css" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="govuk-template__body">
+    <header class="govuk-header" role="banner">
+      <div class="govuk-header__container govuk-width-container">
+        <div class="govuk-header__content">
+          <span class="govuk-header__link govuk-header__link--service-name">Journey JSON Creator</span>
+          <span class="creator-tag">Independent Builder</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="govuk-width-container">
+      <main class="govuk-main-wrapper" id="main-content" role="main">
+        <h1 class="govuk-heading-l">Build Journey Contract JSON</h1>
+        <p class="govuk-body">Standalone tool for creating the middle contract JSON. No dependency on service implementation.</p>
+
+        <div class="govuk-button-group controls-row">
+          <select id="add-type" class="govuk-select control-select"></select>
+          <button id="add-page" type="button" class="govuk-button" data-module="govuk-button">Add Page Template</button>
+          <button id="export-json" type="button" class="govuk-button govuk-button--secondary" data-module="govuk-button">Export JSON</button>
+          <button id="copy-json" type="button" class="govuk-button govuk-button--secondary" data-module="govuk-button">Copy JSON</button>
+          <button id="import-json" type="button" class="govuk-button govuk-button--secondary" data-module="govuk-button">Import JSON</button>
+        </div>
+
+        <div class="preset-row">
+          <span class="govuk-body-s preset-label">Quick presets:</span>
+          <button id="preset-linear" type="button" class="govuk-button govuk-button--secondary">Simple Linear</button>
+          <button id="preset-boolean" type="button" class="govuk-button govuk-button--secondary">Boolean Branch</button>
+          <button id="preset-complex" type="button" class="govuk-button govuk-button--secondary">Complex Survey</button>
+          <button id="preset-reset" type="button" class="govuk-button govuk-button--warning">Reset Builder</button>
+        </div>
+
+        <div class="storage-panel">
+          <h2 class="govuk-heading-s">Storage API</h2>
+          <div class="storage-grid">
+            <div class="govuk-form-group">
+              <label for="service-name" class="govuk-label">Service Name</label>
+              <input id="service-name" class="govuk-input" placeholder="e.g. driving-licence-renewal" />
+            </div>
+          </div>
+          <div class="govuk-button-group">
+            <button id="save-api" type="button" class="govuk-button govuk-button--secondary">Save To API</button>
+            <button id="load-api" type="button" class="govuk-button govuk-button--secondary">Load From API</button>
+            <button id="list-api" type="button" class="govuk-button govuk-button--secondary">List Saved Journeys</button>
+          </div>
+          <div id="storage-list"></div>
+        </div>
+
+        <div id="messages"></div>
+
+        <div class="creator-layout">
+          <section class="left-col">
+            <h2 class="govuk-heading-m">Pages</h2>
+            <div id="pages"></div>
+          </section>
+
+          <aside class="right-col">
+            <div class="sticky-panel">
+              <h2 class="govuk-heading-s">Validation Summary</h2>
+              <div id="validation-summary"></div>
+
+              <h2 class="govuk-heading-s">Journey Graph</h2>
+              <div id="graph"></div>
+
+              <h2 class="govuk-heading-s">JSON Output</h2>
+              <textarea id="json-output" class="govuk-textarea" rows="20" spellcheck="false"></textarea>
+            </div>
+          </aside>
+        </div>
+      </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/ajv@8.17.1/dist/ajv.min.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>

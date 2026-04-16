@@ -1,0 +1,5 @@
+GET     /journeys                   controllers.JourneyController.list
+POST    /journeys                   controllers.JourneyController.create
+GET     /journeys/:serviceName      controllers.JourneyController.get(serviceName: String)
+PUT     /journeys/:serviceName      controllers.JourneyController.update(serviceName: String)
+DELETE  /journeys/:serviceName      controllers.JourneyController.delete(serviceName: String)

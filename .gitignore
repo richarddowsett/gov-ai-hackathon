@@ -1,0 +1,16 @@
+target/
+.bsp/
+.idea/
+.metals/
+.bloop/
+metals.sbt
+*.class
+*.log
+*.swp
+*~
+.DS_Store
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+node_modules/
