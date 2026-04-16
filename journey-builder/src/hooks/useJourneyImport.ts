@@ -50,6 +50,8 @@ export function useJourneyImport() {
         const pageNumber = arrayIndex + 1;
         const sourceId = pageNumberToNodeId.get(pageNumber)!;
 
+        const markerEnd = { type: 'arrowclosed' as const, width: 16, height: 16, color: '#0b0c0c' };
+
         if (page.type === 'boolean') {
           const boolPage = page as { index: { true: number; false: number } };
           const trueTargetId = pageNumberToNodeId.get(boolPage.index.true);
@@ -61,7 +63,9 @@ export function useJourneyImport() {
               source: sourceId,
               target: trueTargetId,
               sourceHandle: 'branch-true',
-              label: 'True',
+              label: 'true',
+              type: 'journey',
+              markerEnd,
             });
           }
           if (falseTargetId) {
@@ -70,7 +74,9 @@ export function useJourneyImport() {
               source: sourceId,
               target: falseTargetId,
               sourceHandle: 'branch-false',
-              label: 'False',
+              label: 'false',
+              type: 'journey',
+              markerEnd,
             });
           }
         } else if (page.type === 'radioButton') {
@@ -84,6 +90,8 @@ export function useJourneyImport() {
                 target: targetId,
                 sourceHandle: `branch-${option}`,
                 label: option,
+                type: 'journey',
+                markerEnd,
               });
             }
           });
@@ -96,6 +104,8 @@ export function useJourneyImport() {
               source: sourceId,
               target: targetId,
               sourceHandle: 'next',
+              type: 'journey',
+              markerEnd,
             });
           }
         }

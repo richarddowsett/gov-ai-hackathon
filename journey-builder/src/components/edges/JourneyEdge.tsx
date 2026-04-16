@@ -6,15 +6,19 @@ import {
 } from '@xyflow/react';
 
 const BRANCH_COLORS: Record<string, string> = {
-  Yes: '#00703c',
   true: '#00703c',
-  No: '#d4351c',
+  True: '#00703c',
+  Yes: '#00703c',
   false: '#d4351c',
+  False: '#d4351c',
+  No: '#d4351c',
 };
 
 const DISPLAY_LABELS: Record<string, string> = {
   true: 'Yes',
+  True: 'Yes',
   false: 'No',
+  False: 'No',
 };
 
 export function JourneyEdge({

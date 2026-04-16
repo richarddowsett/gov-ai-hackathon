@@ -316,10 +316,14 @@ body {
   background: var(--gds-white);
   border: 2px solid var(--gds-grey-2);
   border-radius: 8px;
-  overflow: hidden;
+  overflow: visible;
   box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
   transition: border-color 0.15s, box-shadow 0.15s;
   font-size: 13px;
+}
+
+.node-header {
+  border-radius: 6px 6px 0 0;
 }
 
 .journey-node:hover {
