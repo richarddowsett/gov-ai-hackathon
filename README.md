@@ -24,6 +24,7 @@ sbt test
 ./scripts/validate-journey prototype
 ./scripts/validate-journey service
 ./scripts/validate-journey all
+./scripts/start-json-creator.sh
 ./scripts/start-play-hmrc.sh
 ./scripts/start-browser-demo.sh
 ./scripts/demo-prototype-drift.sh
@@ -67,6 +68,10 @@ bash demo.sh
 ├── conf/
 │   ├── application.conf
 │   └── routes
+├── json-creator/
+│   ├── index.html
+│   ├── styles.css
+│   └── app.js
 ├── app/
 │   ├── controllers/
 │   │   └── BrowserPlayController.scala
@@ -113,3 +118,16 @@ Open:
 - `http://127.0.0.1:9000/service`
 
 `start-browser-demo.sh` is still available as a lightweight non-Play fallback on port `8080`.
+
+## Standalone JSON Creator
+
+Run:
+
+```bash
+./scripts/start-json-creator.sh
+```
+
+Open:
+- `http://127.0.0.1:8787/`
+
+This builder is independent from the Play service and contract runtime. It only generates/imports JSON in-browser.

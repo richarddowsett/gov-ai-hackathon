@@ -22,6 +22,7 @@ The journey model is **index/branch-based** (supports both linear and branching 
 - `service/routes.json` service-side implementation map
 - `prototype/page-*.html` prototype pages
 - `scripts/validate-journey` wrapper script
+- `scripts/start-json-creator.sh` standalone JSON creator (no service dependency)
 - `scripts/start-play-hmrc.sh` Play server using HMRC scaffold dependencies
 - `scripts/start-browser-demo.sh` browser server for prototype + service views
 - `scripts/demo-prototype-drift.sh` one-command prototype drift demo
@@ -81,6 +82,18 @@ Then open:
 Fallback option:
 
 - `./scripts/start-browser-demo.sh` runs the older lightweight server on `127.0.0.1:8080`
+
+### 6. Create JSON independently
+
+```bash
+./scripts/start-json-creator.sh
+```
+
+Then open:
+
+- `http://127.0.0.1:8787/`
+
+This tool is standalone and does not depend on `service/routes.json` or the running Play app.
 
 ## Expected Output
 
