@@ -10,5 +10,9 @@ lazy val root = (project in file("."))
       "org.slf4j"          % "slf4j-simple" % "2.0.16"  % Test
     ),
     Test / fork := true,
-    Test / javaOptions += "-Duser.dir=" + baseDirectory.value.getAbsolutePath
+    Test / javaOptions += "-Duser.dir=" + baseDirectory.value.getAbsolutePath,
+    Test / javaOptions ++= {
+      val props = Seq("journey.json", "prototype.dir", "service.json")
+      props.flatMap(key => sys.props.get(key).map(v => s"-D$key=$v"))
+    }
   )

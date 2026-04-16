@@ -4,137 +4,155 @@ import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import scala.jdk.CollectionConverters._
 
-/** Validation result for a single page check. */
 sealed trait ValidationResult {
-  def pageName: String
+  def check: String
   def isPass: Boolean
 }
 
-case class Pass(pageName: String) extends ValidationResult {
+case class Pass(check: String) extends ValidationResult {
   val isPass = true
-  override def toString: String = s"  PASS  $pageName"
 }
 
-case class Fail(pageName: String, reason: String) extends ValidationResult {
+case class Fail(check: String, expected: String, actual: String) extends ValidationResult {
   val isPass = false
-  override def toString: String = s"  FAIL  $pageName — $reason"
 }
 
-/** Detailed report for an entire journey path validation run. */
+/** Detailed report for a validation run, with formatted human-readable output. */
 case class ValidationReport(
-    pathDescription: String,
-    results:         List[ValidationResult]
+    title:   String,
+    results: List[ValidationResult]
 ) {
   def allPassed: Boolean = results.forall(_.isPass)
+  def passes:    List[Pass] = results.collect { case p: Pass => p }
   def failures:  List[Fail] = results.collect { case f: Fail => f }
 
-  def summary: String = {
-    val status = if (allPassed) "ALL PASSED" else s"${failures.size} FAILURE(S)"
-    val lines  = results.map(_.toString)
-    s"""
-       |=== Journey: $pathDescription ===
-       |${lines.mkString("\n")}
-       |--- Result: $status ---
-       |""".stripMargin
+  def render: String = {
+    val width  = 72
+    val bar    = "═" * width
+    val thinBar = "─" * width
+
+    val header =
+      s"""
+         |╔$bar╗
+         |║  $title${" " * (width - title.length - 2)}║
+         |╚$bar╝""".stripMargin
+
+    val lines = results.map {
+      case Pass(check) =>
+        s"  ✅  $check"
+      case Fail(check, expected, actual) =>
+        s"""  ❌  $check
+           |        expected : $expected
+           |        actual   : $actual""".stripMargin
+    }
+
+    val passCount = passes.size
+    val failCount = failures.size
+    val total     = results.size
+
+    val summaryStatus = if (allPassed) "ALL CHECKS PASSED" else s"$failCount of $total FAILED"
+    val summaryIcon   = if (allPassed) "✅" else "❌"
+
+    val footer =
+      s"""  $thinBar
+         |  $summaryIcon  $summaryStatus  ($passCount passed, $failCount failed, $total total)
+         |""".stripMargin
+
+    (header :: lines ::: List(footer)).mkString("\n")
   }
+}
+
+object ValidationReport {
+  /** Merge multiple reports into a single combined report. */
+  def combine(title: String, reports: List[ValidationReport]): ValidationReport =
+    ValidationReport(title, reports.flatMap(_.results))
 }
 
 /** Validates HTML prototype pages against the journey JSON contract.
   *
-  * For each page in a journey path, it fetches the corresponding HTML file
-  * and checks:
-  *   - the page title (h1) matches the JSON title
-  *   - the page contains appropriate form elements for the page type
-  *   - navigation links/buttons lead to the expected next page
+  * Every check is derived from the JSON — no hardcoded expectations.
   */
 object PrototypeValidator {
 
-  /** Validate a single HTML document against its expected page definition.
-    *
-    * @param doc      the parsed HTML document
-    * @param page     the expected page from the journey JSON
-    * @param pageSlug a human-readable identifier for error messages
-    */
-  def validatePage(doc: Document, page: Page, pageSlug: String): List[ValidationResult] = {
-    val titleCheck    = validateTitle(doc, page, pageSlug)
-    val elementChecks = validatePageElements(doc, page, pageSlug)
+  def validatePage(doc: Document, page: Page, pageLabel: String): List[ValidationResult] = {
+    val titleCheck    = validateTitle(doc, page, pageLabel)
+    val elementChecks = validatePageElements(doc, page, pageLabel)
     titleCheck :: elementChecks
   }
 
-  private def validateTitle(doc: Document, page: Page, slug: String): ValidationResult = {
+  private def validateTitle(doc: Document, page: Page, label: String): ValidationResult = {
     val h1Elements = doc.select("h1")
-    if (h1Elements.isEmpty) {
-      Fail(slug, s"No <h1> found. Expected: '${page.title}'")
-    } else {
+    if (h1Elements.isEmpty)
+      Fail(s"$label — title", page.title, "<no h1 found>")
+    else {
       val actualTitle = h1Elements.first().text().trim
-      if (actualTitle == page.title) Pass(s"$slug title")
-      else Fail(s"$slug title", s"Expected '${page.title}', got '$actualTitle'")
+      if (actualTitle == page.title) Pass(s"$label — title matches")
+      else Fail(s"$label — title", page.title, actualTitle)
     }
   }
 
-  private def validatePageElements(doc: Document, page: Page, slug: String): List[ValidationResult] =
+  private def validatePageElements(doc: Document, page: Page, label: String): List[ValidationResult] =
     page.pageType match {
       case "string" =>
-        val textInputs = doc.select("input[type=text]")
-        if (textInputs.isEmpty)
-          List(Fail(s"$slug fields", "Expected a text input for string page"))
-        else
-          List(Pass(s"$slug fields"))
+        val found = doc.select("input[type=text]").size()
+        if (found >= 1) List(Pass(s"$label — has text input"))
+        else List(Fail(s"$label — text input", "at least 1 <input type=text>", s"found $found"))
 
       case "datePage" =>
-        val dateInputs = doc.select("input[type=date], input[name*=day], input[name*=month], input[name*=year], .govuk-date-input")
-        if (dateInputs.isEmpty)
-          List(Fail(s"$slug fields", "Expected date input fields for datePage"))
-        else
-          List(Pass(s"$slug fields"))
+        val found = doc.select("input[type=date], input[name*=day], input[name*=month], input[name*=year], .govuk-date-input").size()
+        if (found >= 1) List(Pass(s"$label — has date fields"))
+        else List(Fail(s"$label — date fields", "date input elements", s"found $found"))
 
       case "boolean" =>
-        val radios = doc.select("input[type=radio]")
-        if (radios.size() < 2)
-          List(Fail(s"$slug fields", s"Expected at least 2 radio buttons for boolean page, found ${radios.size()}"))
-        else
-          List(Pass(s"$slug fields"))
+        val found = doc.select("input[type=radio]").size()
+        if (found >= 2) List(Pass(s"$label — has yes/no radios ($found found)"))
+        else List(Fail(s"$label — boolean radios", "at least 2 radio buttons", s"found $found"))
 
       case "radioButton" =>
-        val radios        = doc.select("input[type=radio]")
-        val expectedCount = page.options.size
-        val labelTexts    = doc.select("label").asScala.map(_.text().trim).toSet
-        val missingOptions = page.options.filterNot(opt => labelTexts.exists(_.contains(opt)))
+        val radios     = doc.select("input[type=radio]").size()
+        val labelTexts = doc.select("label").asScala.map(_.text().trim).toSet
+        val missing    = page.options.filterNot(opt => labelTexts.exists(_.contains(opt)))
 
         val countCheck =
-          if (radios.size() >= expectedCount) List(Pass(s"$slug radio-count"))
-          else List(Fail(s"$slug radio-count", s"Expected $expectedCount radio buttons, found ${radios.size()}"))
+          if (radios >= page.options.size) List(Pass(s"$label — radio count ($radios found)"))
+          else List(Fail(s"$label — radio count", s"${page.options.size} radio buttons", s"found $radios"))
 
-        val optionCheck =
-          if (missingOptions.isEmpty) List(Pass(s"$slug options"))
-          else List(Fail(s"$slug options", s"Missing radio options: ${missingOptions.mkString(", ")}"))
+        val optionChecks = page.options.map { opt =>
+          if (labelTexts.exists(_.contains(opt))) Pass(s"$label — option '$opt' present")
+          else Fail(s"$label — option '$opt'", s"label containing '$opt'", "not found")
+        }
 
-        countCheck ++ optionCheck
+        countCheck ++ optionChecks
 
       case "checkbox" =>
-        val checkboxes = doc.select("input[type=checkbox]")
-        val expectedCount = page.options.size
-        if (checkboxes.size() < expectedCount)
-          List(Fail(s"$slug fields", s"Expected $expectedCount checkboxes, found ${checkboxes.size()}"))
-        else
-          List(Pass(s"$slug fields"))
+        val found = doc.select("input[type=checkbox]").size()
+        val countCheck =
+          if (found >= page.options.size) List(Pass(s"$label — checkbox count ($found found)"))
+          else List(Fail(s"$label — checkbox count", s"${page.options.size} checkboxes", s"found $found"))
+
+        val labelTexts = doc.select("label").asScala.map(_.text().trim).toSet
+        val optionChecks = page.options.map { opt =>
+          if (labelTexts.exists(_.contains(opt))) Pass(s"$label — option '$opt' present")
+          else Fail(s"$label — option '$opt'", s"label containing '$opt'", "not found")
+        }
+
+        countCheck ++ optionChecks
 
       case "multipleQuestionsPage" =>
-        page.questions.zipWithIndex.map { case (q, i) =>
-          val found = doc.select(s"label, legend, .govuk-fieldset__heading").asScala
+        page.questions.map { q =>
+          val found = doc.select("label, legend, .govuk-fieldset__heading").asScala
             .exists(_.text().trim.contains(q.questionTitle))
-          if (found) Pass(s"$slug question[${i}]")
-          else Fail(s"$slug question[${i}]", s"Question '${q.questionTitle}' not found on page")
+          if (found) Pass(s"$label — question '${q.questionTitle}' present")
+          else Fail(s"$label — question", q.questionTitle, "not found on page")
         }
 
       case "contentPage" =>
-        List(Pass(s"$slug content"))
+        List(Pass(s"$label — content page (no form required)"))
 
       case other =>
-        List(Fail(s"$slug type", s"Unknown page type: $other"))
+        List(Fail(s"$label — page type", "known page type", s"'$other'"))
     }
 
-  /** Convenience: parse an HTML string and validate it against a page. */
-  def validateHtml(html: String, page: Page, pageSlug: String): List[ValidationResult] =
-    validatePage(Jsoup.parse(html), page, pageSlug)
+  def validateHtml(html: String, page: Page, pageLabel: String): List[ValidationResult] =
+    validatePage(Jsoup.parse(html), page, pageLabel)
 }

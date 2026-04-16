@@ -49,8 +49,7 @@ shipped.
 
 - **Java 11+** (Java 17 or 21 recommended)
 - **sbt** (Scala Build Tool) — [install guide](https://www.scala-sbt.org/download.html)
-
-That's it. No browser, no Node.js, no Docker required.
+- **Python 3** (only needed for the prototype web server, not for tests)
 
 ## Quick Start
 
@@ -62,6 +61,28 @@ cd gov-ai-hackathon/journey-validator
 # Run all tests
 sbt test
 ```
+
+## Browsing the Prototype
+
+The prototype pages can be viewed in a real browser with full GOV.UK styling,
+working form submissions, and branching logic driven by the journey JSON.
+
+```bash
+python3 prototype/server.py
+```
+
+Then open **http://localhost:4000** in your browser.
+
+Features:
+- **GOV.UK styling** — header, phase banner, styled form elements, green action buttons
+- **Working branching** — boolean and radio button pages route you down different paths based on your selection, exactly as defined in `example/journey.json`
+- **Back links** — every page after the first has a "Back" link
+- **Page navigator** — a debug strip at the bottom of every page showing all 9 pages with direct links (current page highlighted)
+- **Custom port** — pass a port number as an argument: `python3 prototype/server.py 8080`
+
+Try both journey paths:
+1. Answer **Yes** to "Do you have a driver's license?" → vehicle type → features → rate experience
+2. Answer **No** → preferred transportation method → thank you
 
 ## Project Structure
 
@@ -78,6 +99,7 @@ journey-validator/
 │   └── journey.json                       # Example journey (9-page survey)
 │
 ├── prototype/
+│   ├── server.py                          # Browsable prototype server (python3)
 │   ├── page-0-welcome.html                # GOV.UK-styled prototype pages
 │   ├── page-1-name.html
 │   ├── page-2-dob.html
@@ -99,11 +121,9 @@ journey-validator/
 │   └── ServiceValidator.scala             # Service route validation
 │
 ├── src/test/scala/contract/
+│   ├── ValidatorConfig.scala              # Configurable paths (system properties)
 │   ├── EmbeddedServer.scala               # Lightweight HTTP server for tests
-│   ├── JourneyParserSpec.scala            # Parser unit tests
-│   ├── JourneyGraphSpec.scala             # Graph/path enumeration tests
-│   ├── PrototypeContractSpec.scala        # Prototype validation (HTTP + HTML)
-│   ├── ServiceContractSpec.scala          # Service contract validation
+│   ├── JourneyContractSpec.scala          # JSON-driven contract validation
 │   └── DriftDetectionSpec.scala           # Demonstrates catching drift
 │
 ├── scripts/
@@ -150,38 +170,58 @@ All 7 page types from the schema are supported:
 
 ## Running Tests
 
-### All tests
+The validator is **fully dynamic** — you specify the journey JSON, prototype
+directory, and service descriptor and it validates everything automatically.
+Nothing is hardcoded to a particular journey.
+
+### Default (uses the example journey shipped with this repo)
+
 ```bash
 sbt test
 ```
 
-### Individual test suites
+### Custom journey — system properties
+
+Pass `-D` flags to point at your own files:
+
 ```bash
-# Parser tests — validates JSON parsing
-sbt "testOnly contract.JourneyParserSpec"
-
-# Graph tests — validates path enumeration through branching journeys
-sbt "testOnly contract.JourneyGraphSpec"
-
-# Prototype validation — validates HTML pages against the JSON contract
-sbt "testOnly contract.PrototypeContractSpec"
-
-# Service validation — validates service routes against the JSON contract
-sbt "testOnly contract.ServiceContractSpec"
-
-# Drift detection — demonstrates catching mismatches
-sbt "testOnly contract.DriftDetectionSpec"
+sbt \
+  -Djourney.json=path/to/your/journey.json \
+  -Dprototype.dir=path/to/your/prototype \
+  -Dservice.json=path/to/your/routes.json \
+  test
 ```
 
-### Using the scripts
+### Custom journey — shell script
+
+The runner script accepts `--journey`, `--prototype`, and `--service` flags,
+or environment variables:
+
 ```bash
 chmod +x scripts/*.sh
 
-./scripts/validate-journey.sh              # run all tests
-./scripts/validate-journey.sh prototype    # prototype only
-./scripts/validate-journey.sh service      # service only
-./scripts/validate-journey.sh drift        # drift detection demo
-./scripts/demo.sh                          # full interactive demo
+# flags
+./scripts/validate-journey.sh \
+  --journey my/journey.json \
+  --prototype my/proto \
+  --service my/routes.json
+
+# environment variables
+JOURNEY_JSON=my/journey.json \
+PROTOTYPE_DIR=my/proto \
+SERVICE_JSON=my/routes.json \
+./scripts/validate-journey.sh
+```
+
+### Individual suites
+
+```bash
+sbt "testOnly contract.JourneyContractSpec"   # schema, graph, prototype, service
+sbt "testOnly contract.DriftDetectionSpec"     # drift detection demo
+
+# or via the script
+./scripts/validate-journey.sh contract
+./scripts/validate-journey.sh drift
 ```
 
 ## Drift Detection
@@ -209,7 +249,15 @@ The `DriftDetectionSpec` test suite demonstrates this with 6 scenarios:
 1. Create a new JSON file following `schema/journey.schema.json`
 2. Place your prototype HTML files in a directory (named `page-{index}-{slug}.html`)
 3. Create a service routes descriptor (`routes.json`)
-4. Update the file paths in the test specs (or parameterise them)
+4. Run the validator against your files — no code changes needed:
+
+```bash
+sbt \
+  -Djourney.json=your/journey.json \
+  -Dprototype.dir=your/prototype \
+  -Dservice.json=your/routes.json \
+  test
+```
 
 ## Technology Stack
 
@@ -221,6 +269,7 @@ The `DriftDetectionSpec` test suite demonstrates this with 6 scenarios:
 | HTML parsing | Jsoup 1.18.1 | Fast, reliable HTML parser (no browser needed) |
 | Testing | ScalaTest 3.2.19 | Standard Scala test framework |
 | Test server | Java HttpServer | Zero-dependency embedded server |
+| Prototype server | Python 3 http.server | Browse the journey in a real browser |
 
 ## Future Scope
 

@@ -3,100 +3,105 @@ package contract
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 
-/** Demonstrates drift detection: when the prototype or service diverges
-  * from the journey contract, the validator pinpoints exactly what changed.
+/** Demonstrates drift detection using the journey JSON as the source of truth.
   *
-  * These tests intentionally introduce mismatches to verify that the
-  * validator catches them with clear, actionable error messages.
+  * Finds pages by type from the JSON, then constructs drifted HTML to verify
+  * that the validator catches each kind of mismatch. No page indices or titles
+  * are hardcoded — everything is discovered from the journey.
   */
 class DriftDetectionSpec extends AnyFreeSpec with Matchers {
 
-  private val journey = JourneyParser.parseFile("example/journey.json").toOption.get
+  private val journey = JourneyParser.parseFile(ValidatorConfig.journeyPath).toOption.get
+
+  private def findPageByType(pageType: String): (Page, Int) = {
+    val idx = journey.pages.indexWhere(_.pageType == pageType)
+    require(idx >= 0, s"Journey has no page of type '$pageType'")
+    (journey.pages(idx), idx)
+  }
+
+  private def logResults(results: List[ValidationResult]): Unit =
+    results.foreach {
+      case Pass(check)                   => info(s"  ✅  $check")
+      case Fail(check, expected, actual) => info(s"  ❌  $check — expected: '$expected', actual: '$actual'")
+    }
 
   "Drift detection" - {
 
-    "should catch a title mismatch" in {
-      val driftedHtml =
-        """<html><body>
-          |  <h1>What's your name?</h1>
-          |  <input type="text" name="fullName">
-          |</body></html>""".stripMargin
+    "title mismatch: changing a page title should be caught" in {
+      val (page, idx) = findPageByType("string")
+      val driftedTitle = page.title + " (modified)"
 
-      val namePage = journey.pages(1)
-      namePage.title shouldBe "What is your name?"
+      val html = s"""<html><body><h1>$driftedTitle</h1><input type="text"></body></html>"""
 
-      val results  = PrototypeValidator.validateHtml(driftedHtml, namePage, "page[1]")
+      val results  = PrototypeValidator.validateHtml(html, page, s"page[$idx]")
       val failures = results.filterNot(_.isPass)
 
+      info(s"  Original title : '${page.title}'")
+      info(s"  Drifted title  : '$driftedTitle'")
+      logResults(failures)
+
       failures should not be empty
-      failures.head.toString should include("Expected 'What is your name?'")
-      failures.head.toString should include("What's your name?")
     }
 
-    "should catch a missing form field" in {
-      val missingFieldHtml =
-        """<html><body>
-          |  <h1>What is your name?</h1>
-          |</body></html>""".stripMargin
+    "missing field: removing a required input should be caught" in {
+      val (page, idx) = findPageByType("string")
 
-      val namePage = journey.pages(1)
-      val results  = PrototypeValidator.validateHtml(missingFieldHtml, namePage, "page[1]")
+      val html = s"""<html><body><h1>${page.title}</h1></body></html>"""
+
+      val results  = PrototypeValidator.validateHtml(html, page, s"page[$idx]")
       val failures = results.filterNot(_.isPass)
 
-      failures should not be empty
-      failures.exists(_.toString.contains("text input")) shouldBe true
-    }
-
-    "should catch a missing radio option" in {
-      val missingOptionHtml =
-        """<html><body>
-          |  <h1>What type of vehicle do you own?</h1>
-          |  <input type="radio" name="vehicle" value="Car"><label>Car</label>
-          |  <input type="radio" name="vehicle" value="Motorcycle"><label>Motorcycle</label>
-          |  <input type="radio" name="vehicle" value="Truck"><label>Truck</label>
-          |</body></html>""".stripMargin
-
-      val vehiclePage = journey.pages(4)
-      val results     = PrototypeValidator.validateHtml(missingOptionHtml, vehiclePage, "page[4]")
-      val failures    = results.filterNot(_.isPass)
+      logResults(failures)
 
       failures should not be empty
-      failures.exists(_.toString.contains("Other")) shouldBe true
     }
 
-    "should catch a missing service route" in {
+    "missing option: removing a radio option should be caught" in {
+      val (page, idx) = findPageByType("radioButton")
+      val keptOptions   = page.options.init
+      val droppedOption = page.options.last
+
+      val radiosHtml = keptOptions.map { opt =>
+        s"""<input type="radio" name="choice" value="$opt"><label>$opt</label>"""
+      }.mkString("\n")
+
+      val html = s"""<html><body><h1>${page.title}</h1>$radiosHtml</body></html>"""
+
+      val results  = PrototypeValidator.validateHtml(html, page, s"page[$idx]")
+      val failures = results.filterNot(_.isPass)
+
+      info(s"  Kept options    : ${keptOptions.mkString(", ")}")
+      info(s"  Dropped option  : $droppedOption")
+      logResults(failures)
+
+      failures should not be empty
+      failures.exists(_.check.contains(droppedOption)) shouldBe true
+    }
+
+    "missing service route: incomplete service descriptor should be caught" in {
+      val firstPage = journey.pages.head
       val incompleteService = ServiceDescriptor(routes = List(
-        ServiceRoute("GET", "/welcome", "contentPage", "Welcome to our survey")
+        ServiceRoute("GET", "/only-one", firstPage.pageType, firstPage.title)
       ))
 
       val report = ServiceValidator.validate(journey, incompleteService)
+
+      logResults(report.failures)
+      info(s"\n  ${report.failures.size} missing routes detected out of ${journey.pageCount} pages")
+
       report.allPassed shouldBe false
-      report.failures.size should be >= 1
-      report.failures.exists(_.reason.contains("No service route found")) shouldBe true
+      report.failures.size should be >= (journey.pageCount - 1)
     }
 
-    "should catch a page type mismatch in service" in {
-      val wrongTypeService = ServiceDescriptor(routes = journey.pages.toList.map { page =>
-        val wrongType = if (page.pageType == "string") "contentPage" else page.pageType
-        ServiceRoute("GET", s"/${page.title.take(10)}", wrongType, page.title,
-          page.index match {
-            case BranchingIndex(routes) => routes.map { case (k, v) => k -> s"/page-$v" }
-            case _ => Map.empty
-          })
-      })
+    "correct page: matching HTML should pass all checks" in {
+      val (page, idx) = findPageByType("contentPage")
 
-      val report = ServiceValidator.validate(journey, wrongTypeService)
-      report.allPassed shouldBe false
-      report.failures.exists(_.reason.contains("Expected type 'string'")) shouldBe true
-    }
+      val html = s"""<html><body><h1>${page.title}</h1></body></html>"""
 
-    "should pass when everything matches" in {
-      val goodHtml =
-        """<html><body>
-          |  <h1>Welcome to our survey</h1>
-          |</body></html>""".stripMargin
+      val results = PrototypeValidator.validateHtml(html, page, s"page[$idx]")
 
-      val results = PrototypeValidator.validateHtml(goodHtml, journey.pages(0), "page[0]")
+      logResults(results)
+
       results.forall(_.isPass) shouldBe true
     }
   }

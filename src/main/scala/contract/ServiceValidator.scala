@@ -4,7 +4,6 @@ import play.api.libs.json._
 import scala.io.Source
 import scala.util.Using
 
-/** Represents a single route in a service's routing table. */
 case class ServiceRoute(
     method:     String,
     path:       String,
@@ -25,12 +24,6 @@ object ServiceRoute {
   }
 }
 
-/** Represents a service's self-describing routing metadata.
-  *
-  * In a real Play Framework service, this would be extracted from conf/routes
-  * and controller annotations. For the hackathon, services expose a routes.json
-  * that describes their implemented pages.
-  */
 case class ServiceDescriptor(routes: List[ServiceRoute])
 
 object ServiceDescriptor {
@@ -49,12 +42,7 @@ object ServiceDescriptor {
 }
 
 /** Validates a service descriptor against the journey JSON contract.
-  *
-  * Checks that:
-  *   - every page in the journey has a corresponding route in the service
-  *   - page titles match between the contract and the service
-  *   - page types are consistent
-  *   - branching routes exist for all options defined in the contract
+  * All checks are derived from the JSON — no hardcoded expectations.
   */
 object ServiceValidator {
 
@@ -63,24 +51,28 @@ object ServiceValidator {
 
     val results: List[ValidationResult] = journey.pages.toList.zipWithIndex.flatMap {
       case (page, idx) =>
-        val slug = s"page[$idx]"
+        val label = s"page[$idx] '${page.title}'"
         routesByTitle.get(page.title) match {
           case None =>
-            List(Fail(slug, s"No service route found for page '${page.title}'"))
+            List(Fail(s"$label — route exists", "a matching service route", "no route found"))
 
           case Some(matchingRoutes) =>
             val route = matchingRoutes.head
-            val typeCheck =
-              if (route.pageType == page.pageType) Pass(s"$slug type")
-              else Fail(s"$slug type", s"Expected type '${page.pageType}', service has '${route.pageType}'")
 
-            val titleCheck = Pass(s"$slug title")
+            val typeCheck =
+              if (route.pageType == page.pageType) Pass(s"$label — type matches")
+              else Fail(s"$label — type", page.pageType, route.pageType)
+
+            val titleCheck = Pass(s"$label — title matches")
 
             val branchingChecks: List[ValidationResult] = page.index match {
               case BranchingIndex(routes) =>
-                val missingRoutes = routes.keys.toList.filterNot(route.nextRoutes.contains)
-                if (missingRoutes.isEmpty) List(Pass(s"$slug branching"))
-                else List(Fail(s"$slug branching", s"Service missing routes for answers: ${missingRoutes.mkString(", ")}"))
+                routes.keys.toList.map { answer =>
+                  if (route.nextRoutes.contains(answer))
+                    Pass(s"$label — branching route for '$answer' exists")
+                  else
+                    Fail(s"$label — branching route", s"route for answer '$answer'", "not defined in service")
+                }
               case _ => Nil
             }
 
@@ -88,6 +80,6 @@ object ServiceValidator {
         }
     }
 
-    ValidationReport(pathDescription = "Service contract validation", results = results)
+    ValidationReport("Service contract validation", results)
   }
 }
