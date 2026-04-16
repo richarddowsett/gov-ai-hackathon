@@ -5,7 +5,7 @@
 This project validates that your **prototype** and **service flow** match a single JSON journey definition.
 
 - Source of truth: `example/journey.json`
-- Optional schema reference: `schema/journey.schema.json`
+- Required schema validation: `schema/journey.schema.json` is enforced at runtime before parsing
 - Prototype validation: checks HTML page titles and transitions in `prototype/`
 - Service validation: checks route transitions in `service/routes.json`
 - Runner output: writes traversal state to `journey-state.json`
@@ -22,6 +22,9 @@ The journey model is **index/branch-based** (supports both linear and branching 
 - `service/routes.json` service-side implementation map
 - `prototype/page-*.html` prototype pages
 - `scripts/validate-journey` wrapper script
+- `scripts/start-browser-demo.sh` browser server for prototype + service views
+- `scripts/demo-prototype-drift.sh` one-command prototype drift demo
+- `scripts/demo-service-drift.sh` one-command service drift demo
 
 ## Prerequisites
 
@@ -54,6 +57,24 @@ sbt test
 ./scripts/validate-journey prototype
 ./scripts/validate-journey service
 ```
+
+### 4. Run demo scenarios
+
+```bash
+./scripts/demo-prototype-drift.sh
+./scripts/demo-service-drift.sh
+```
+
+### 5. View both in browser
+
+```bash
+./scripts/start-browser-demo.sh
+```
+
+Then open:
+
+- `http://127.0.0.1:8080/prototype/page-1.html` (prototype pages)
+- `http://127.0.0.1:8080/service` (service transition table)
 
 ## Expected Output
 
@@ -92,4 +113,3 @@ sbt test
 
 - End page:
   - Transition target should be `END`
-

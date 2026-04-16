@@ -5,7 +5,7 @@ echo "== Running baseline validation with Scala =="
 ./scripts/validate-journey all
 
 echo "== Introducing drift in prototype title =="
-perl -i -pe 's/Enter your name/What\x27s your name\?/g' prototype/start.html
+perl -i -pe 's/What is your name\?/What\x27s your name\?/g' prototype/page-2.html
 
 set +e
 ./scripts/validate-journey prototype
@@ -18,7 +18,7 @@ if [ "$EXIT_CODE" -eq 0 ]; then
 fi
 
 echo "== Restoring prototype title =="
-perl -i -pe 's/What\x27s your name\?/Enter your name/g' prototype/start.html
+perl -i -pe 's/What\x27s your name\?/What is your name\?/g' prototype/page-2.html
 
 ./scripts/validate-journey prototype
 

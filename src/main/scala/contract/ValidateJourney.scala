@@ -17,7 +17,15 @@ object ValidateJourney {
 
   def main(args: Array[String]): Unit = {
     val mode = args.headOption.getOrElse("all")
-    val contract = ContractLoader.loadJourneyContract()
+    val contract =
+      try {
+        ContractLoader.loadJourneyContract()
+      } catch {
+        case ex: Exception =>
+          System.err.println(s"Contract loading failed: ${ex.getMessage}")
+          System.exit(1)
+          return
+      }
 
     val results = mode match {
       case "prototype" => Seq(PrototypeValidator.validate(contract))

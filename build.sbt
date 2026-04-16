@@ -5,6 +5,7 @@ lazy val root = (project in file("."))
     name := "ai-journey-contract-validator",
     libraryDependencies ++= Seq(
       "com.lihaoyi" %% "ujson" % "3.3.1",
+      "com.networknt" % "json-schema-validator" % "1.5.6",
       "org.jsoup" % "jsoup" % "1.18.1",
       "org.scalatest" %% "scalatest" % "3.2.19" % Test
     ),

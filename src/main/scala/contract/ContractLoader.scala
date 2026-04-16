@@ -13,6 +13,7 @@ object ContractLoader {
   }
 
   def loadJourneyContract(path: Path = JourneyPath): JourneyContract = {
+    SchemaValidator.validateJourneyFile(path)
     val root = ujson.read(Files.readString(path))
     val pageValues = root("pages").arr.toSeq
     val totalPages = pageValues.size
