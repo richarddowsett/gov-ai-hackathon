@@ -6,10 +6,15 @@ import {
 } from '@xyflow/react';
 
 const BRANCH_COLORS: Record<string, string> = {
-  True: '#00703c',
+  Yes: '#00703c',
   true: '#00703c',
-  False: '#d4351c',
+  No: '#d4351c',
   false: '#d4351c',
+};
+
+const DISPLAY_LABELS: Record<string, string> = {
+  true: 'Yes',
+  false: 'No',
 };
 
 export function JourneyEdge({
@@ -34,8 +39,9 @@ export function JourneyEdge({
     curvature: 0.4,
   });
 
-  const labelStr = typeof label === 'string' ? label : undefined;
-  const edgeColor = labelStr ? (BRANCH_COLORS[labelStr] ?? '#1d70b8') : '#0b0c0c';
+  const rawLabel = typeof label === 'string' ? label : undefined;
+  const labelStr = rawLabel ? (DISPLAY_LABELS[rawLabel] ?? rawLabel) : undefined;
+  const edgeColor = rawLabel ? (BRANCH_COLORS[rawLabel] ?? '#1d70b8') : '#0b0c0c';
   const strokeWidth = selected ? 3.5 : 2.5;
 
   return (

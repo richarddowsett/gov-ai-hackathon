@@ -1,6 +1,16 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import type { PageNodeData } from './nodeTypes';
 
+const OPTION_COLORS = [
+  'handle-branch-blue',
+  'handle-branch-orange',
+  'handle-branch-purple',
+  'handle-branch-teal',
+  'handle-branch-pink',
+  'handle-branch-green',
+  'handle-branch-red',
+];
+
 export function RadioButtonNode({ data, selected }: NodeProps) {
   const d = data as PageNodeData;
   const options: string[] = (d.options as string[]) ?? ['Option 1', 'Option 2'];
@@ -19,40 +29,20 @@ export function RadioButtonNode({ data, selected }: NodeProps) {
           {d.title || 'Untitled radio buttons'}
         </div>
         <div className="node-preview">
-          {options.slice(0, 3).map((opt, i) => (
-            <div key={i} className="preview-radio">
+          {options.map((opt, i) => (
+            <div key={i} className="preview-radio branch-option-row">
               <div className="preview-radio-dot" /> {opt}
+              <Handle
+                type="source"
+                position={Position.Right}
+                id={`branch-${opt}`}
+                className={`handle-branch-inline ${OPTION_COLORS[i % OPTION_COLORS.length]}`}
+              />
             </div>
           ))}
-          {options.length > 3 && (
-            <div style={{ fontSize: 10, color: '#505a5f' }}>+{options.length - 3} more</div>
-          )}
         </div>
       </div>
-      <div className="branch-handles-section">
-        {options.map((opt, i) => (
-          <div key={i} className="branch-handle-row">
-            <span className="branch-handle-label">{opt}</span>
-            <Handle
-              type="source"
-              position={Position.Bottom}
-              id={`branch-${opt}`}
-              style={{ position: 'relative', left: 0, bottom: 0, transform: 'none' }}
-            />
-          </div>
-        ))}
-      </div>
-      {/* Right-side branch handles for horizontal connections */}
-      {options.map((opt, i) => (
-        <Handle
-          key={`right-${i}`}
-          type="source"
-          position={Position.Right}
-          id={`branch-${opt}-right`}
-          className="handle-branch-right"
-          style={{ top: `${40 + (i * 50) / Math.max(options.length - 1, 1)}%` }}
-        />
-      ))}
+      <Handle type="source" position={Position.Bottom} id="next" />
     </div>
   );
 }

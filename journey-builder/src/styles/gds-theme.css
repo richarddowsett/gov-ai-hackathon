@@ -477,45 +477,31 @@ body {
   background: var(--gds-green);
 }
 
-.handle-branch-right {
-  background: #e8590c;
-  width: 10px;
-  height: 10px;
-}
-
-.branch-handles-section {
-  border-top: 1px solid var(--gds-grey-3);
-}
-
-.branch-handle-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 12px;
-  font-size: 10px;
-  color: var(--gds-grey-1);
-  background: var(--gds-grey-4);
-  border-top: 1px solid var(--gds-grey-3);
+/* ── Inline branch handles on options ────────────── */
+.branch-option-row {
   position: relative;
+  padding-right: 16px;
 }
 
-.branch-handle-row:first-child {
-  border-top: none;
+.handle-branch-inline {
+  width: 12px !important;
+  height: 12px !important;
+  right: -18px !important;
+  border: 2px solid var(--gds-white) !important;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.15);
 }
 
-.branch-handle-label {
-  font-weight: 700;
-  font-size: 10px;
-  letter-spacing: 0.3px;
+.handle-branch-inline:hover {
+  transform: scale(1.5) !important;
 }
 
-.branch-label-true {
-  color: var(--gds-green);
-}
-
-.branch-label-false {
-  color: var(--gds-red);
-}
+.handle-branch-green { background: var(--gds-green) !important; }
+.handle-branch-red { background: var(--gds-red) !important; }
+.handle-branch-blue { background: var(--gds-blue) !important; }
+.handle-branch-orange { background: #e8590c !important; }
+.handle-branch-purple { background: #7048e8 !important; }
+.handle-branch-teal { background: #0c8599 !important; }
+.handle-branch-pink { background: #d6336c !important; }
 
 /* ── Properties Panel ────────────────────────────── */
 .properties-panel {
