@@ -66,7 +66,6 @@ const messagesEl = document.getElementById("messages");
 const validationSummaryEl = document.getElementById("validation-summary");
 const graphEl = document.getElementById("graph");
 const storageListEl = document.getElementById("storage-list");
-const apiBaseEl = document.getElementById("api-base");
 const serviceNameEl = document.getElementById("service-name");
 
 for (const t of pageTypes) {
@@ -451,7 +450,8 @@ function importJourneyObject(parsed, successMessage) {
 }
 
 function getApiBase() {
-  return (apiBaseEl.value || "").trim().replace(/\/+$/, "");
+  const { protocol, hostname } = window.location;
+  return `${protocol}//${hostname}:9000`;
 }
 
 function getServiceName() {
@@ -460,10 +460,6 @@ function getServiceName() {
 
 async function apiRequest(path, opts) {
   const base = getApiBase();
-  if (!base) {
-    return { ok: false, status: 0, error: "API Base URL is required." };
-  }
-
   const url = `${base}${path}`;
   try {
     const res = await fetch(url, {

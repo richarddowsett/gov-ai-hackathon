@@ -20,7 +20,6 @@ Open:
 
 In JSON Creator, use the **Storage API** panel:
 
-- Set API Base URL (`http://127.0.0.1:9000`)
 - Enter a Service Name
 - Use **Save To API**, **Load From API**, and **List Saved Journeys**
 
