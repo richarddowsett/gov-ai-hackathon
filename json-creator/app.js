@@ -845,7 +845,36 @@ function jumpHref(target, pageCount) {
   return target >= 0 && target < pageCount ? `#page-card-${target + 1}` : "";
 }
 
+function captureFocusState() {
+  const active = document.activeElement;
+  if (!(active instanceof HTMLElement) || !active.id) return null;
+
+  const isTextField = active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement;
+  return {
+    id: active.id,
+    start: isTextField ? active.selectionStart : null,
+    end: isTextField ? active.selectionEnd : null,
+  };
+}
+
+function restoreFocusState(state) {
+  if (!state?.id) return;
+  const target = document.getElementById(state.id);
+  if (!(target instanceof HTMLElement)) return;
+
+  target.focus({ preventScroll: true });
+  const isTextField = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
+  if (isTextField && state.start !== null && state.end !== null) {
+    try {
+      target.setSelectionRange(state.start, state.end);
+    } catch {
+      // Ignore selection restore failures for non-text-like input types.
+    }
+  }
+}
+
 function render() {
+  const focusState = captureFocusState();
   const result = validateAndBuild();
 
   pagesEl.innerHTML = "";
@@ -910,18 +939,21 @@ function render() {
   renderValidationSummary(result);
   renderGraph(result);
   updateOutputPreview(result);
+  restoreFocusState(focusState);
 }
 
-function makeSelectIndexField(label, value, pages, onChange) {
+function makeSelectIndexField(label, value, pages, onChange, selectId) {
   const pageCount = pages.length;
   const wrap = document.createElement("div");
   wrap.className = "govuk-form-group";
 
   const href = jumpHref(value, pageCount);
+  const forAttr = selectId ? `for="${selectId}"` : "";
+  const idAttr = selectId ? `id="${selectId}"` : "";
   wrap.innerHTML = `
-    <label class="govuk-label">${label}</label>
+    <label class="govuk-label" ${forAttr}>${label}</label>
     <div class="index-line">
-      <select class="govuk-select compact-input">${indexOptionsHtml(value, pages)}</select>
+      <select ${idAttr} class="govuk-select compact-input">${indexOptionsHtml(value, pages)}</select>
       ${href ? `<a class="govuk-link jump-link" href="${href}">Jump</a>` : ""}
     </div>
   `;
@@ -938,8 +970,8 @@ function renderTypeDetails(container, page, idx, pageCount) {
   container.innerHTML = "";
 
   if (page.type === "boolean") {
-    container.appendChild(makeSelectIndexField("Index when true", page.boolTrue, state.pages, (v) => (state.pages[idx].boolTrue = v)));
-    container.appendChild(makeSelectIndexField("Index when false", page.boolFalse, state.pages, (v) => (state.pages[idx].boolFalse = v)));
+    container.appendChild(makeSelectIndexField("Index when true", page.boolTrue, state.pages, (v) => (state.pages[idx].boolTrue = v), `page-${idx}-bool-true`));
+    container.appendChild(makeSelectIndexField("Index when false", page.boolFalse, state.pages, (v) => (state.pages[idx].boolFalse = v), `page-${idx}-bool-false`));
     return;
   }
 
@@ -949,20 +981,20 @@ function renderTypeDetails(container, page, idx, pageCount) {
   }
 
   if (page.type === "checkbox") {
-    container.appendChild(makeSelectIndexField("Next index", page.index, state.pages, (v) => (state.pages[idx].index = v)));
+    container.appendChild(makeSelectIndexField("Next index", page.index, state.pages, (v) => (state.pages[idx].index = v), `page-${idx}-next-index`));
     container.appendChild(optionsBlock(page, idx, false, pageCount));
     return;
   }
 
   if (page.type === "multipleQuestionsPage") {
-    container.appendChild(makeSelectIndexField("Next index", page.index, state.pages, (v) => (state.pages[idx].index = v)));
+    container.appendChild(makeSelectIndexField("Next index", page.index, state.pages, (v) => (state.pages[idx].index = v), `page-${idx}-next-index`));
 
     [0, 1].forEach((n) => {
       const qWrap = document.createElement("div");
       qWrap.className = "govuk-form-group";
       qWrap.innerHTML = `
-        <label class="govuk-label">Question ${n + 1} title</label>
-        <input class="govuk-input" maxlength="100" value="${escapeHtml(page.questions[n] || "")}" />
+        <label class="govuk-label" for="page-${idx}-question-${n}">Question ${n + 1} title</label>
+        <input id="page-${idx}-question-${n}" class="govuk-input" maxlength="100" value="${escapeHtml(page.questions[n] || "")}" />
       `;
       qWrap.querySelector("input").addEventListener("input", (e) => {
         state.pages[idx].questions[n] = e.target.value;
@@ -973,8 +1005,8 @@ function renderTypeDetails(container, page, idx, pageCount) {
       const vWrap = document.createElement("div");
       vWrap.className = "govuk-form-group";
       vWrap.innerHTML = `
-        <label class="govuk-label">Validation regex ${n + 1} (optional)</label>
-        <input class="govuk-input" maxlength="100" value="${escapeHtml(page.validations[n] || "")}" />
+        <label class="govuk-label" for="page-${idx}-validation-${n}">Validation regex ${n + 1} (optional)</label>
+        <input id="page-${idx}-validation-${n}" class="govuk-input" maxlength="100" value="${escapeHtml(page.validations[n] || "")}" />
       `;
       vWrap.querySelector("input").addEventListener("input", (e) => {
         state.pages[idx].validations[n] = e.target.value;
@@ -987,12 +1019,12 @@ function renderTypeDetails(container, page, idx, pageCount) {
   }
 
   if (page.type === "string") {
-    container.appendChild(makeSelectIndexField("Next index", page.index, state.pages, (v) => (state.pages[idx].index = v)));
+    container.appendChild(makeSelectIndexField("Next index", page.index, state.pages, (v) => (state.pages[idx].index = v), `page-${idx}-next-index`));
     const vWrap = document.createElement("div");
     vWrap.className = "govuk-form-group";
     vWrap.innerHTML = `
-      <label class="govuk-label">Validation regex (optional)</label>
-      <input class="govuk-input" maxlength="100" value="${escapeHtml(page.stringValidation || "")}" />
+      <label class="govuk-label" for="page-${idx}-string-validation">Validation regex (optional)</label>
+      <input id="page-${idx}-string-validation" class="govuk-input" maxlength="100" value="${escapeHtml(page.stringValidation || "")}" />
     `;
     vWrap.querySelector("input").addEventListener("input", (e) => {
       state.pages[idx].stringValidation = e.target.value;
@@ -1002,7 +1034,7 @@ function renderTypeDetails(container, page, idx, pageCount) {
     return;
   }
 
-  container.appendChild(makeSelectIndexField("Next index", page.index, state.pages, (v) => (state.pages[idx].index = v)));
+  container.appendChild(makeSelectIndexField("Next index", page.index, state.pages, (v) => (state.pages[idx].index = v), `page-${idx}-next-index`));
 }
 
 function optionsBlock(page, idx, includeTargets, pageCount) {
@@ -1030,11 +1062,11 @@ function optionsBlock(page, idx, includeTargets, pageCount) {
     row.className = "option-row";
 
     const targetControl = includeTargets
-      ? `<select class="govuk-select compact-input target">${indexOptionsHtml(toInt((page.optionTargets || [])[optIdx] ?? 0), state.pages)}</select>`
+      ? `<select id="page-${idx}-target-${optIdx}" class="govuk-select compact-input target">${indexOptionsHtml(toInt((page.optionTargets || [])[optIdx] ?? 0), state.pages)}</select>`
       : "<div></div>";
 
     row.innerHTML = `
-      <input class="govuk-input compact-input option" maxlength="50" value="${escapeHtml(opt || "")}" placeholder="Option label" />
+      <input id="page-${idx}-option-${optIdx}" class="govuk-input compact-input option" maxlength="50" value="${escapeHtml(opt || "")}" placeholder="Option label" />
       ${targetControl}
       <button type="button" class="govuk-button govuk-button--warning remove-opt" data-module="govuk-button">Remove</button>
     `;
