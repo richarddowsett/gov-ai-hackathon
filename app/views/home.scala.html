@@ -1,0 +1,27 @@
+@(errorMessage: Option[String] = None)
+
+@main("Journey Browser Demo") {
+  <h1 class="govuk-heading-xl">Journey Browser Demo</h1>
+
+  @errorMessage.map { msg =>
+    <div class="govuk-error-summary" data-module="govuk-error-summary">
+      <div role="alert">
+        <h2 class="govuk-error-summary__title">There is a problem</h2>
+        <div class="govuk-error-summary__body">
+          <p class="govuk-body">@msg</p>
+        </div>
+      </div>
+    </div>
+  }
+
+  <p class="govuk-body">View both layers in a GOV.UK style frontend.</p>
+
+  <div class="journey-links">
+    <a class="govuk-link" href="/prototype/page-1">Open prototype journey</a>
+    <a class="govuk-link" href="/service">Open service flow map</a>
+  </div>
+
+  <div class="govuk-inset-text" style="margin-top: 24px;">
+    This uses Play + HMRC frontend dependencies and GOV.UK frontend styling.
+  </div>
+}

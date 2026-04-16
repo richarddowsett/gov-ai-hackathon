@@ -1,0 +1,37 @@
+@(pageId: String, title: String, fields: Seq[(String, String)], transitions: Seq[(String, String)])
+
+@main(title) {
+  <a href="/" class="govuk-back-link">Back</a>
+  <h1 class="govuk-heading-l">@title</h1>
+
+  @if(fields.isEmpty) {
+    <p class="govuk-body">No input fields detected on this page.</p>
+  } else {
+    <form>
+      @for((fieldName, fieldType) <- fields) {
+        <div class="govuk-form-group">
+          <label class="govuk-label" for="@fieldName">@fieldName</label>
+          <input class="govuk-input" id="@fieldName" name="@fieldName" type="@fieldType" />
+        </div>
+      }
+    </form>
+  }
+
+  @if(transitions.isEmpty) {
+    <p class="govuk-body">No transitions defined on this page.</p>
+  } else {
+    <ul class="govuk-list transition-list">
+      @for((key, target) <- transitions) {
+        <li>
+          @if(target == "END") {
+            <a class="govuk-button govuk-button--secondary" href="/service">@key -> @target</a>
+          } else {
+            <a class="govuk-button govuk-button--secondary" href="/prototype/@target">@key -> @target</a>
+          }
+        </li>
+      }
+    </ul>
+  }
+
+  <p class="govuk-body-s">Source id: @pageId</p>
+}

@@ -1,0 +1,3 @@
+GET     /                       controllers.BrowserPlayController.home
+GET     /prototype/:page        controllers.BrowserPlayController.prototype(page: String)
+GET     /service                controllers.BrowserPlayController.service

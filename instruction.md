@@ -22,6 +22,7 @@ The journey model is **index/branch-based** (supports both linear and branching 
 - `service/routes.json` service-side implementation map
 - `prototype/page-*.html` prototype pages
 - `scripts/validate-journey` wrapper script
+- `scripts/start-play-hmrc.sh` Play server using HMRC scaffold dependencies
 - `scripts/start-browser-demo.sh` browser server for prototype + service views
 - `scripts/demo-prototype-drift.sh` one-command prototype drift demo
 - `scripts/demo-service-drift.sh` one-command service drift demo
@@ -68,13 +69,18 @@ sbt test
 ### 5. View both in browser
 
 ```bash
-./scripts/start-browser-demo.sh
+./scripts/start-play-hmrc.sh
 ```
 
 Then open:
 
-- `http://127.0.0.1:8080/prototype/page-1.html` (prototype pages)
-- `http://127.0.0.1:8080/service` (service transition table)
+- `http://127.0.0.1:9000/`
+- `http://127.0.0.1:9000/prototype/page-1` (prototype pages)
+- `http://127.0.0.1:9000/service` (service transition table)
+
+Fallback option:
+
+- `./scripts/start-browser-demo.sh` runs the older lightweight server on `127.0.0.1:8080`
 
 ## Expected Output
 

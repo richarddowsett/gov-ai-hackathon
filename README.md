@@ -1,6 +1,6 @@
 # AI Journey Contract Validator
 
-Scala-based starter repo for validating a user journey contract across:
+Scala + Play HMRC frontend starter for validating a user journey contract across:
 
 - `prototype/` HTML pages
 - `service/` implementation metadata via Scala test contract checks
@@ -24,6 +24,7 @@ sbt test
 ./scripts/validate-journey prototype
 ./scripts/validate-journey service
 ./scripts/validate-journey all
+./scripts/start-play-hmrc.sh
 ./scripts/start-browser-demo.sh
 ./scripts/demo-prototype-drift.sh
 ./scripts/demo-service-drift.sh
@@ -63,6 +64,20 @@ bash demo.sh
 │   └── routes.json
 ├── project/
 │   └── build.properties
+├── conf/
+│   ├── application.conf
+│   └── routes
+├── app/
+│   ├── controllers/
+│   │   └── BrowserPlayController.scala
+│   ├── services/
+│   │   ├── BrowserViewService.scala
+│   │   └── ViewModels.scala
+│   └── views/
+│       ├── main.scala.html
+│       ├── home.scala.html
+│       ├── prototype.scala.html
+│       └── service.scala.html
 ├── src/main/scala/contract/
 │   ├── ContractLoader.scala
 │   ├── JourneyRunner.scala
@@ -89,9 +104,12 @@ If you change `What is your name?` to `What's your name?` in `prototype/page-2.h
 Run:
 
 ```bash
-./scripts/start-browser-demo.sh
+./scripts/start-play-hmrc.sh
 ```
 
 Open:
-- `http://127.0.0.1:8080/prototype/page-1.html`
-- `http://127.0.0.1:8080/service`
+- `http://127.0.0.1:9000/`
+- `http://127.0.0.1:9000/prototype/page-1`
+- `http://127.0.0.1:9000/service`
+
+`start-browser-demo.sh` is still available as a lightweight non-Play fallback on port `8080`.

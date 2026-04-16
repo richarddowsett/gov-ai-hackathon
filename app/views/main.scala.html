@@ -1,0 +1,39 @@
+@(title: String)(content: Html)
+
+<!doctype html>
+<html lang="en" class="govuk-template">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@title - GOV.UK</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/govuk-frontend@@5.7.1/dist/govuk/govuk-frontend.min.css" />
+    <style>
+      .hmrc-header-tag { font-size: 16px; margin-left: 8px; color: #dbe8f1; }
+      .transition-list li { margin-bottom: 10px; }
+      .journey-links a { margin-right: 12px; }
+    </style>
+  </head>
+  <body class="govuk-template__body">
+    <header class="govuk-header" role="banner" data-module="govuk-header">
+      <div class="govuk-header__container govuk-width-container">
+        <div class="govuk-header__content">
+          <a href="/" class="govuk-header__link govuk-header__link--service-name">
+            AI Journey Contract Validator
+          </a>
+          <span class="hmrc-header-tag">HMRC Play frontend scaffold</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="govuk-width-container">
+      <main class="govuk-main-wrapper" id="main-content" role="main">
+        @content
+      </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/govuk-frontend@@5.7.1/dist/govuk/govuk-frontend.min.js"></script>
+    <script>
+      window.GOVUKFrontend && window.GOVUKFrontend.initAll && window.GOVUKFrontend.initAll();
+    </script>
+  </body>
+</html>
